@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} | CollabSphere{% endblock %}
+{% block page_title %}{{ project.name }}{% endblock %}
+{% block breadcrumb %}Detail projektu{% endblock %}
+
+{% block topbar_actions %}
+{% if is_manager %}
+<div class="d-flex gap-2">
+    <a href="{% url 'project_edit' project.pk %}" class="btn btn-outline-secondary">
+        <i class="bi bi-pencil me-2"></i>Upraviť projekt
+    </a>
+    <a href="{% url 'task_create_for_project' project.pk %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i>Nová úloha
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-4">
+                    <div>
+                        <span class="badge bg-primary bg-opacity-10 text-primary border-0 mb-2 px-3 py-2">
+                            {{ project.get_status_display }}
+                        </span>
+                        <h4 class="fw-bold text-dark mb-0">{{ project.name }}</h4>
+                    </div>
+                    {% if project.deadline %}
+                    <div class="text-end">
+                        <div class="small text-muted mb-1">Termín projektu</div>
+                        <div class="fw-bold text-dark"><i class="bi bi-calendar3 me-2"></i>{{ project.deadline }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <h6 class="fw-bold text-muted text-uppercase small mb-3">Popis projektu</h6>
+                <p class="text-dark mb-4" style="line-height: 1.6;">{{ project.description|default:"Tento projekt nemá zadaný žiadny popis." }}</p>
+                
+                <div class="row g-3 pt-4 border-top">
+                    <div class="col-sm-4">
+                        <div class="p-3 bg-light rounded-4">
+                            <div class="small text-muted mb-1">Tím</div>
+                            <div class="fw-bold text-dark">{{ project.team.name|default:"Nepriradený" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="p-3 bg-light rounded-4">
+                            <div class="small text-muted mb-1">Vytvorený</div>
+                            <div class="fw-bold text-dark">{{ project.created_at|date:"d.m.Y" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="p-3 bg-light rounded-4">
+                            <div class="small text-muted mb-1">Počet úloh</div>
+                            <div class="fw-bold text-dark">{{ tasks|length }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center p-4">
+                <h5 class="mb-0 fw-bold">Členovia tímu</h5>
+                {% if is_manager %}
+                <a href="{% url 'membership_add' project.pk %}" class="btn btn-sm btn-light text-primary">
+                    <i class="bi bi-person-plus-fill"></i>
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for m in memberships %}
+                    <div class="list-group-item p-4 border-0 border-bottom d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-md bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; font-weight: 700;">
+                                {{ m.user.username|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <div class="fw-bold text-dark">{{ m.user.get_full_name|default:m.user.username }}</div>
+                                <div class="small text-muted">{{ m.get_role_display }}</div>
+                            </div>
+                        </div>
+                        {% if is_manager %}
+                        <form method="post" action="{% url 'membership_remove' project.pk m.user.pk %}" onsubmit="return confirm('Naozaj chcete odstrániť tohto člena z projektu?')">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-light text-danger rounded-circle" style="width: 32px; height: 32px; padding: 0;">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-people fs-2 d-block mb-2"></i>
+                        Žiadni členovia
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+        <form class="row g-3 align-items-end" method="get">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted">Stav úlohy</label>
+                <select name="status" class="form-select form-select-sm bg-light border-0">
+                    <option value="">Všetky stavy</option>
+                    {% for val, label in task_status_choices %}
+                    <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted">Priorita</label>
+                <select name="priority" class="form-select form-select-sm bg-light border-0">
+                    <option value="">Všetky priority</option>
+                    {% for val, label in task_priority_choices %}
+                    <option value="{{ val }}" {% if priority_filter == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted">Riešiteľ</label>
+                <select name="assignee" class="form-select form-select-sm bg-light border-0">
+                    <option value="">Všetci riešitelia</option>
+                    {% for m in memberships %}
+                    <option value="{{ m.user.pk }}" {% if assignee_filter == m.user.pk|stringformat:"s" %}selected{% endif %}>{{ m.user.get_full_name|default:m.user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-auto">
+                <button class="btn btn-sm btn-primary px-4" type="submit">Filtrovať</button>
+                {% if status_filter or priority_filter or assignee_filter %}
+                <a href="{% url 'project_detail' project.pk %}" class="btn btn-sm btn-outline-danger px-3 ms-2">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm overflow-hidden mb-5">
+    <div class="card-header bg-white border-0 p-4">
+        <h5 class="mb-0 fw-bold">Zoznam úloh projektu</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Názov úlohy</th>
+                    <th>Priorita</th>
+                    <th>Stav</th>
+                    <th>Riešiteľ</th>
+                    <th>Termín</th>
+                    <th class="text-end">Akcie</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tasks %}
+                <tr>
+                    <td>
+                        <a href="{% url 'task_detail' t.pk %}" class="text-decoration-none fw-bold text-dark">{{ t.name }}</a>
+                    </td>
+                    <td>
+                        <span class="badge badge-priority-{{ t.priority }}">{{ t.get_priority_display }}</span>
+                    </td>
+                    <td>
+                        {% if is_manager or t.assignee == request.user %}
+                        <form method="post" action="{% url 'task_change_status' t.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <select name="status" class="form-select form-select-sm border-0 bg-light fw-bold" style="width:auto; font-size: 0.75rem;" onchange="this.form.submit()">
+                                {% for val, label in task_status_choices %}
+                                <option value="{{ val }}" {% if t.status == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                        {% else %}
+                        <span class="badge badge-status-{{ t.status }}">{{ t.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-xs bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; font-size: 0.6rem; font-weight: 700;">
+                                {{ t.assignee.username|slice:":1"|upper|default:"?" }}
+                            </div>
+                            <span class="small">{{ t.assignee.get_full_name|default:t.assignee.username|default:"Nepriradené" }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="small text-muted">
+                            <i class="bi bi-calendar3 me-1"></i> {{ t.deadline|default:"—" }}
+                        </div>
+                    </td>
+                    <td class="text-end">
+                        <div class="d-flex justify-content-end gap-2">
+                            {% if is_manager %}
+                            <a href="{% url 'task_edit' t.pk %}" class="btn btn-sm btn-light text-secondary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'task_delete' t.pk %}" class="btn btn-sm btn-light text-danger">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">
+                        <i class="bi bi-clipboard-x fs-1 d-block mb-3"></i>
+                        <h5>Žiadne úlohy v tomto projekte</h5>
+                        <p class="small">Vytvorte prvú úlohu a začnite pracovať.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

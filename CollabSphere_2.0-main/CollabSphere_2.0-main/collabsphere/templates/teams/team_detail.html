@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ team.name }}{% endblock %}
+{% block page_title %}{{ team.name }}{% endblock %}
+{% block topbar_actions %}
+{% if is_manager %}
+<a href="{% url 'team_edit' team.pk %}" class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-pencil me-1"></i>Upraviť</a>
+<a href="{% url 'team_delete' team.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash me-1"></i>Vymazať</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header bg-white py-3 fw-semibold"><i class="bi bi-info-circle me-2"></i>Info</div>
+      <div class="card-body">
+        <p class="text-muted">{{ team.description|default:"Bez popisu" }}</p>
+        <small class="text-muted">Vytvorený: {{ team.created_at|date:"d.m.Y" }}</small>
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header bg-white py-3 fw-semibold"><i class="bi bi-folder2-open me-2 text-primary"></i>Projekty tímu</div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for p in team.projects.all %}
+          <li class="list-group-item">
+            <a href="{% url 'project_detail' p.pk %}" class="text-decoration-none">{{ p.name }}</a>
+            <span class="badge bg-secondary float-end">{{ p.get_status_display }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted text-center py-3">Žiadne projekty</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header bg-white py-3 fw-semibold"><i class="bi bi-people me-2 text-success"></i>Členovia ({{ team.members.count }})</div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for member in team.members.all %}
+          <li class="list-group-item d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-person-circle fs-4 text-muted"></i>
+            <div>
+              <div class="fw-semibold">{{ member.get_full_name|default:member.username }}</div>
+              <small class="text-muted">{{ member.get_full_name|default:member.email|default:"—" }}</small>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-muted text-center py-3">Žiadni členovia</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

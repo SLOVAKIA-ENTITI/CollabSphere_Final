@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Nový používateľ{% endblock %}
+{% block page_title %}Nový používateľ{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header bg-white py-3 fw-semibold">
+        <i class="bi bi-person-plus me-2 text-primary"></i>Vytvoriť používateľa
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+          </div>
+          {% endfor %}
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Vytvoriť</button>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Zrušiť</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('input, select, textarea').forEach(el => {
+  if (el.tagName === 'SELECT') el.classList.add('form-select');
+  else if (el.type !== 'checkbox') el.classList.add('form-control');
+});
+</script>
+{% endblock %}
