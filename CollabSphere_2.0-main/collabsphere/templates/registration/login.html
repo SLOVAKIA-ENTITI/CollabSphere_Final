@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prihlásenie | CollabSphere</title>
+    <!-- Anti-FOUC: apply saved theme before paint -->
+    <script>
+        (function() {
+            try {
+                if (localStorage.getItem('cs-theme') === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Dark theme (scoped rules + toggle styles) -->
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/dark.css' %}">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            transition: background-color 0.22s ease;
+        }
+        .login-container {
+            display: flex;
+            width: 900px;
+            height: 600px;
+            background: white;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            border: 1px solid transparent;
+            transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+        }
+        .login-sidebar {
+            flex: 1;
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 60%, #818cf8 100%);
+            padding: 3rem;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .login-sidebar::before {
+            content: '';
+            position: absolute; top: -100px; right: -100px;
+            width: 300px; height: 300px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+        .login-sidebar::after {
+            content: '';
+            position: absolute; bottom: -80px; left: -60px;
+            width: 220px; height: 220px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 50%;
+        }
+        .login-form-container {
+            flex: 1;
+            padding: 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: white;
+            transition: background 0.22s ease;
+        }
+        .brand {
+            font-size: 1.5rem; font-weight: 800;
+            margin-bottom: 2rem;
+            display: flex; align-items: center; gap: 0.75rem;
+        }
+        .form-control {
+            padding: 0.75rem 1rem; border-radius: 12px;
+            border: 1px solid #e2e8f0; background: #f8fafc;
+            transition: background 0.22s, border-color 0.22s, color 0.18s;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.1);
+            border-color: #6366f1; background: #f8fafc;
+        }
+        .btn-login {
+            background: #6366f1; border: none;
+            padding: 0.75rem; border-radius: 12px;
+            font-weight: 600; transition: all 0.2s;
+            color: #fff; width: 100%; font-size: 1rem;
+            cursor: pointer; font-family: inherit;
+        }
+        .btn-login:hover { background: #4f46e5; transform: translateY(-1px); }
+        @media (max-width: 992px) {
+            .login-container { width: 450px; height: auto; }
+            .login-sidebar { display: none; }
+        }
+        @media (max-width: 500px) {
+            .login-container { width: 95vw; }
+            .login-form-container { padding: 2rem; }
+        }
+    </style>
+</head>
+<body class="login-page-bg">
+
+    <!-- Floating theme toggle -->
+    <button class="login-theme-toggle" id="loginThemeToggle" title="Prepnúť tému" aria-label="Prepnúť tmavý/svetlý režim">
+        <i class="bi bi-moon-stars-fill" id="loginThemeIcon"></i>
+    </button>
+
+    <div class="login-container">
+        <div class="login-sidebar">
+            <div class="brand">
+                <i class="bi bi-layers-fill"></i>
+                <span>CollabSphere</span>
+            </div>
+            <h2 class="fw-bold mb-4">Vitajte späť!</h2>
+            <p class="opacity-75 mb-0">Zefektívnite svoju tímovú spoluprácu a spravujte projekty s ľahkosťou na jednom mieste.</p>
+        </div>
+        <div class="login-form-container">
+            <div class="mb-5">
+                <h3 class="fw-bold mb-2">Prihlásenie</h3>
+                <p class="text-muted">Zadajte svoje údaje pre prístup k účtu</p>
+            </div>
+
+            {% if form.errors %}
+            <div class="alert alert-danger border-0 rounded-4 small mb-4">
+                <i class="bi bi-exclamation-circle-fill me-2"></i> Nesprávne meno alebo heslo.
+            </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted">Používateľské meno</label>
+                    <input type="text" name="username" class="form-control" placeholder="napr. janko_mrkvicka" required autofocus>
+                </div>
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label class="form-label small fw-bold text-muted">Heslo</label>
+                    </div>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-login mb-4">
+                    Prihlásiť sa
+                </button>
+            </form>
+            
+            <div class="text-center mt-auto">
+                <p class="small login-copyright mb-0 text-muted">© 2026 CollabSphere. Všetky práva vyhradené.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const html    = document.documentElement;
+            const btn     = document.getElementById('loginThemeToggle');
+            const iconEl  = document.getElementById('loginThemeIcon');
+            const body    = document.body;
+            const formCon = document.querySelector('.login-form-container');
+            const loginCon = document.querySelector('.login-container');
+
+            function isDark() { return html.getAttribute('data-theme') === 'dark'; }
+
+            function syncUI() {
+                if (isDark()) {
+                    iconEl.className = 'bi bi-sun-fill';
+                    body.style.backgroundColor = '#0d1117';
+                    if (loginCon) {
+                        loginCon.style.backgroundColor = '#161b22';
+                        loginCon.style.borderColor = '#30363d';
+                        loginCon.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,.6)';
+                    }
+                    if (formCon) formCon.style.backgroundColor = '#161b22';
+                } else {
+                    iconEl.className = 'bi bi-moon-stars-fill';
+                    body.style.backgroundColor = '#f8fafc';
+                    if (loginCon) {
+                        loginCon.style.backgroundColor = 'white';
+                        loginCon.style.borderColor = 'transparent';
+                        loginCon.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,.1)';
+                    }
+                    if (formCon) formCon.style.backgroundColor = 'white';
+                }
+            }
+
+            syncUI(); // sync to saved preference on load
+
+            btn.addEventListener('click', function() {
+                if (isDark()) {
+                    html.removeAttribute('data-theme');
+                    try { localStorage.setItem('cs-theme', 'light'); } catch(e) {}
+                } else {
+                    html.setAttribute('data-theme', 'dark');
+                    try { localStorage.setItem('cs-theme', 'dark'); } catch(e) {}
+                }
+                syncUI();
+            });
+        })();
+    </script>
+</body>
+</html>

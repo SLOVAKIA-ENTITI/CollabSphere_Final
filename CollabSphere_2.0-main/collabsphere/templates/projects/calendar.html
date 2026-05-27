@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}Kalendár{% endblock %}
+{% block page_title %}Kalendár{% endblock %}
+
+{% block content %}
+<div class="cal-wrap">
+
+  <!-- Legend -->
+  <div class="cal-legend mb-3 d-flex gap-3 flex-wrap">
+    <span class="legend-item"><span class="dot dot-project"></span> Projekt</span>
+    <span class="legend-item"><span class="dot dot-task-low"></span> Úloha – nízka</span>
+    <span class="legend-item"><span class="dot dot-task-medium"></span> Úloha – stredná</span>
+    <span class="legend-item"><span class="dot dot-task-high"></span> Úloha – vysoká</span>
+    <span class="legend-item"><span class="dot dot-task-critical"></span> Úloha – kritická</span>
+    <span class="legend-item"><span class="dot dot-holiday"></span> Štátny sviatok</span>
+  </div>
+
+  <!-- Calendar header -->
+  <div class="card cal-card">
+    <div class="cal-header d-flex align-items-center justify-content-between px-4 py-3">
+      <button class="btn btn-sm btn-ghost" id="prevBtn"><i class="bi bi-chevron-left"></i></button>
+      <h5 class="mb-0 fw-semibold" id="monthLabel"></h5>
+      <button class="btn btn-sm btn-ghost" id="nextBtn"><i class="bi bi-chevron-right"></i></button>
+    </div>
+
+    <!-- Day names -->
+    <div class="cal-grid cal-days-header px-3">
+      {% for d in days %}
+        <div class="day-name">{{ d }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Calendar cells -->
+    <div class="cal-grid cal-body px-3 pb-3" id="calBody"></div>
+  </div>
+
+  <!-- Event detail popup -->
+  <div class="event-popup" id="eventPopup">
+    <div class="popup-header">
+      <span id="popupDate"></span>
+      <button class="popup-close" id="popupClose"><i class="bi bi-x"></i></button>
+    </div>
+    <div id="popupEvents"></div>
+  </div>
+</div>
+
+<style>
+.cal-wrap { position: relative; max-width: 900px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: .82rem; color: #6b7280; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot-project       { background: #4f46e5; }
+.dot-task-low      { background: #10b981; }
+.dot-task-medium   { background: #f59e0b; }
+.dot-task-high     { background: #ef4444; }
+.dot-task-critical { background: #7c3aed; }
+.dot-holiday       { background: #94a3b8; }
+
+.cal-card { overflow: hidden; }
+.cal-header { border-bottom: 1px solid #e5e7eb; }
+.btn-ghost { background: transparent; border: 1px solid #e5e7eb; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6b7280; }
+.btn-ghost:hover { background: #f3f4f6; color: #111; }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cal-days-header { border-bottom: 1px solid #f3f4f6; padding-top: 8px; padding-bottom: 8px; }
+.day-name { text-align: center; font-size: .72rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; }
+
+.cal-cell {
+  min-height: 90px;
+  border-right: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 6px;
+  cursor: default;
+  transition: background .15s;
+}
+.cal-cell:nth-child(7n) { border-right: none; }
+.cal-cell.other-month .cell-num { color: #d1d5db; }
+.cal-cell.today { background: #f5f3ff; }
+.cal-cell.today .cell-num { background: #4f46e5; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.cal-cell.has-events { cursor: pointer; }
+.cal-cell.has-events:hover { background: #fafafa; }
+
+.cell-num { font-size: .82rem; font-weight: 500; color: #374151; margin-bottom: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.cell-events { display: flex; flex-direction: column; gap: 2px; }
+.cell-event {
+  font-size: .7rem;
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  cursor: pointer;
+}
+.cell-event.type-project        { background: #ede9fe; color: #4f46e5; }
+.cell-event.type-task-low       { background: #d1fae5; color: #065f46; }
+.cell-event.type-task-medium    { background: #fef3c7; color: #92400e; }
+.cell-event.type-task-high      { background: #fee2e2; color: #991b1b; }
+.cell-event.type-task-critical  { background: #ede9fe; color: #5b21b6; border-left: 2px solid #7c3aed; }
+.cell-event.type-holiday        { background: #f1f5f9; color: #475569; border-left: 2px solid #94a3b8; font-style: italic; }
+.cell-more { font-size: .68rem; color: #9ca3af; padding-left: 4px; }
+
+/* Popup */
+.event-popup {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.15);
+  width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
+  z-index: 1000;
+  animation: popIn .15s ease;
+}
+.event-popup.open { display: block; }
+@keyframes popIn { from { transform: translate(-50%,-52%); opacity: 0; } to { transform: translate(-50%,-50%); opacity: 1; } }
+.popup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.2); z-index: 999; }
+.popup-overlay.open { display: block; }
+
+.popup-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 16px 10px; border-bottom: 1px solid #f3f4f6; }
+.popup-header span { font-weight: 600; font-size: .95rem; color: #111; }
+.popup-close { background: none; border: none; cursor: pointer; color: #9ca3af; font-size: 1.1rem; line-height: 1; padding: 0; }
+.popup-close:hover { color: #111; }
+
+.popup-event { display: flex; flex-direction: column; gap: 2px; padding: 10px 16px; border-bottom: 1px solid #f9fafb; text-decoration: none; }
+.popup-event:last-child { border-bottom: none; }
+.popup-event:hover { background: #f9fafb; }
+.popup-event-title { font-size: .88rem; font-weight: 500; color: #111; }
+.popup-event-meta { font-size: .75rem; color: #9ca3af; }
+.popup-badge { display: inline-block; font-size: .68rem; font-weight: 600; border-radius: 3px; padding: 1px 6px; margin-top: 2px; }
+</style>
+
+<div class="popup-overlay" id="popupOverlay"></div>
+
+<script>
+const EVENTS = {{ events_json|safe }};
+
+const MONTHS_SK = ['Január','Február','Marec','Apríl','Máj','Jún','Júl','August','September','Október','November','December'];
+
+let current = new Date();
+current.setDate(1);
+
+function eventClass(ev) {
+  if (ev.type === 'project') return 'type-project';
+  if (ev.type === 'holiday') return 'type-holiday';
+  return `type-task-${ev.priority || 'medium'}`;
+}
+
+function statusLabel(ev) {
+  const map = { planning:'Plánovanie', active:'Aktívny', on_hold:'Pozastavený', completed:'Dokončený', cancelled:'Zrušený',
+                todo:'Na urobenie', in_progress:'V riešení', review:'Na kontrole', done:'Hotovo' };
+  return map[ev.status] || ev.status;
+}
+
+function render() {
+  const year = current.getFullYear();
+  const month = current.getMonth();
+  document.getElementById('monthLabel').textContent = `${MONTHS_SK[month]} ${year}`;
+
+  const body = document.getElementById('calBody');
+  body.innerHTML = '';
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay  = new Date(year, month + 1, 0);
+  // Monday-based: 0=Mon … 6=Sun
+  let startDow = (firstDay.getDay() + 6) % 7;
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Build event map by date string
+  const evMap = {};
+  EVENTS.forEach(ev => {
+    if (!evMap[ev.date]) evMap[ev.date] = [];
+    evMap[ev.date].push(ev);
+  });
+
+  // Prev month filler
+  const prevLast = new Date(year, month, 0);
+  for (let i = startDow - 1; i >= 0; i--) {
+    const d = prevLast.getDate() - i;
+    body.appendChild(makeCell(new Date(year, month - 1, d), evMap, true));
+  }
+
+  // Current month
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    body.appendChild(makeCell(new Date(year, month, d), evMap, false));
+  }
+
+  // Next month filler
+  const total = startDow + lastDay.getDate();
+  const remainder = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let d = 1; d <= remainder; d++) {
+    body.appendChild(makeCell(new Date(year, month + 1, d), evMap, true));
+  }
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function makeCell(date, evMap, otherMonth) {
+  const key = `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+  const evs = evMap[key] || [];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const cell = document.createElement('div');
+  cell.className = 'cal-cell' +
+    (otherMonth ? ' other-month' : '') +
+    (date.getTime() === today.getTime() ? ' today' : '') +
+    (evs.length ? ' has-events' : '');
+
+  const num = document.createElement('div');
+  num.className = 'cell-num';
+  num.textContent = date.getDate();
+  cell.appendChild(num);
+
+  if (evs.length) {
+    const evBox = document.createElement('div');
+    evBox.className = 'cell-events';
+    const show = evs.slice(0, 2);
+    show.forEach(ev => {
+      const pill = document.createElement('div');
+      pill.className = `cell-event ${eventClass(ev)}`;
+      pill.textContent = ev.title;
+      evBox.appendChild(pill);
+    });
+    if (evs.length > 2) {
+      const more = document.createElement('div');
+      more.className = 'cell-more';
+      more.textContent = `+${evs.length - 2} ďalších`;
+      evBox.appendChild(more);
+    }
+    cell.appendChild(evBox);
+
+    cell.addEventListener('click', () => openPopup(key, evs, date));
+  }
+
+  return cell;
+}
+
+function openPopup(key, evs, date) {
+  const months = ['januára','februára','marca','apríla','mája','júna','júla','augusta','septembra','októbra','novembra','decembra'];
+  document.getElementById('popupDate').textContent = `${date.getDate()}. ${months[date.getMonth()]} ${date.getFullYear()}`;
+
+  const container = document.getElementById('popupEvents');
+  container.innerHTML = '';
+  evs.forEach(ev => {
+    const a = document.createElement('a');
+    a.href = ev.url;
+    a.className = 'popup-event';
+
+    const title = document.createElement('div');
+    title.className = 'popup-event-title';
+    title.textContent = ev.title;
+
+    const meta = document.createElement('div');
+    meta.className = 'popup-event-meta';
+    if (ev.type === 'holiday') {
+        meta.textContent = 'Štátny sviatok';
+    } else {
+        meta.textContent = ev.type === 'project' ? 'Projekt' : 'Úloha';
+    }
+
+    a.appendChild(title);
+    a.appendChild(meta);
+
+    if (ev.type !== 'holiday') {
+        const badge = document.createElement('span');
+        badge.className = `popup-badge ${eventClass(ev)}`;
+        badge.textContent = statusLabel(ev);
+        a.appendChild(badge);
+    }
+    container.appendChild(a);
+  });
+
+  document.getElementById('eventPopup').classList.add('open');
+  document.getElementById('popupOverlay').classList.add('open');
+}
+
+document.getElementById('popupClose').addEventListener('click', closePopup);
+document.getElementById('popupOverlay').addEventListener('click', closePopup);
+function closePopup() {
+  document.getElementById('eventPopup').classList.remove('open');
+  document.getElementById('popupOverlay').classList.remove('open');
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  current.setMonth(current.getMonth() - 1);
+  render();
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  current.setMonth(current.getMonth() + 1);
+  render();
+});
+
+render();
+</script>
+{% endblock %}
