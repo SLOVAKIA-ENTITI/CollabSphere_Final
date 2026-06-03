@@ -6,19 +6,19 @@ from .models import Project, Task, Team, Membership
 class UserCreateForm(forms.ModelForm):
     password1 = forms.CharField(label='Heslo', widget=forms.PasswordInput)
     password2 = forms.CharField(label='Potvrdenie hesla', widget=forms.PasswordInput)
+    
+    # Zmenili sme prázdny reťazec '' na 'member'
     role = forms.ChoiceField(
         label='Rola',
-        choices=[('', 'Člen tímu'), ('manager', 'Manažér')],
-        required=False
+        choices=[('member', 'Člen tímu'), ('manager', 'Manažér')],
+        required=True # Pokojne môže byť True, keďže 'member' je platná hodnota
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Tento cyklus teraz bezpečne hodí 'required' na úplne všetky polia
         for field_name, field in self.fields.items():
-            if field_name == 'role':
-                field.required = False  # Rolu explicitne necháme nepovinnú
-            else:
-                field.required = True   # Všetko ostatné bude povinné
+            field.required = True
 
     class Meta:
         model = User
@@ -43,12 +43,11 @@ class UserCreateForm(forms.ModelForm):
         if commit:
             user.save()
             role = self.cleaned_data.get('role')
+            # Ak je manažér, pridá ho do skupiny manažérov, inak zostane bežným členom
             if role == 'manager':
                 group, _ = Group.objects.get_or_create(name='manager')
                 user.groups.add(group)
         return user
-
-
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
