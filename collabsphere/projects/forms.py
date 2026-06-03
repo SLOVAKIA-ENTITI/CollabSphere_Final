@@ -9,7 +9,7 @@ class UserCreateForm(forms.ModelForm):
     role = forms.ChoiceField(
         label='Rola',
         choices=[('', 'Člen tímu'), ('manager', 'Manažér')],
-        required=False
+        required=True
     )
 
     class Meta:
