@@ -190,10 +190,17 @@
                     </td>
                     <td>
                         <div class="d-flex align-items-center">
-                            <div class="avatar-xs bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; font-size: 0.6rem; font-weight: 700;">
-                                {{ t.assignee.username|slice:":1"|upper|default:"?" }}
-                            </div>
-                            <span class="small">{{ t.assignee.get_full_name|default:t.assignee.username|default:"Nepriradené" }}</span>
+                            {% if t.assignee %}
+                                <div class="avatar-xs bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; font-size: 0.6rem; font-weight: 700;">
+                                    {{ t.assignee.username|slice:":1"|upper }}
+                                </div>
+                                <span class="small">{{ t.assignee.get_full_name|default:t.assignee.username }}</span>
+                            {% else %}
+                                <div class="avatar-xs bg-secondary bg-opacity-10 text-secondary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 24px; height: 24px; font-size: 0.6rem; font-weight: 700;">
+                                    ?
+                                </div>
+                                <span class="small text-muted">Nepriradené</span>
+                            {% endif %}
                         </div>
                     </td>
                     <td>
