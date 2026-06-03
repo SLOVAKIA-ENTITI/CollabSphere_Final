@@ -14,9 +14,11 @@ class UserCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Prejde úplne všetky polia (aj username, password1, role atď.) a spraví ich povinnými
         for field_name, field in self.fields.items():
-            field.required = True
+            if field_name == 'role':
+                field.required = False  # Rolu explicitne necháme nepovinnú
+            else:
+                field.required = True   # Všetko ostatné bude povinné
 
     class Meta:
         model = User
