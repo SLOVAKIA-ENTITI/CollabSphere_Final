@@ -9,8 +9,14 @@ class UserCreateForm(forms.ModelForm):
     role = forms.ChoiceField(
         label='Rola',
         choices=[('', 'Člen tímu'), ('manager', 'Manažér')],
-        required=True
+        required=False
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Prejde úplne všetky polia (aj username, password1, role atď.) a spraví ich povinnými
+        for field_name, field in self.fields.items():
+            field.required = True
 
     class Meta:
         model = User
