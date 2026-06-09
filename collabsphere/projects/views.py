@@ -4,12 +4,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Q
-from .models import Project, Task, Team, Membership
-from .forms import ProjectForm, TaskForm, TeamForm, MembershipForm
-from .decorators import manager_required
-from django.db.models import Q, Value
+from django.db.models import Q, Value  # Spojené Q a Value do jedného riadku
 from django.db.models.functions import Concat
+from .models import Project, Task, Team, Membership
+
+# TU JE ZMENA: Pridali sme UserEditForm a MembershipFormSet do importu
+from .forms import ProjectForm, TaskForm, TeamForm, MembershipForm, UserEditForm, MembershipFormSet
+from .decorators import manager_required
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
