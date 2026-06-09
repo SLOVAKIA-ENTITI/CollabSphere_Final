@@ -145,7 +145,6 @@ class MembershipForm(forms.ModelForm):
         model = Membership
         fields = ['user', 'role']
 
-
 class UserEditForm(forms.ModelForm):
     role = forms.ChoiceField(
         label='Rola',
