@@ -44,7 +44,7 @@
             <i class="bi bi-person-circle fs-4 text-muted"></i>
             <div>
               <div class="fw-semibold">{{ member.get_full_name|default:member.username }}</div>
-              <small class="text-muted">{{ member.get_full_name|default:member.email|default:"—" }}</small>
+              <small class="text-muted">@{{ member.username }}{% if member.email %} · {{ member.email }}{% endif %}</small>
             </div>
           </li>
           {% empty %}

@@ -98,6 +98,13 @@ class TaskStatusForm(forms.ModelForm):
 
 
 class TeamForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['members'].queryset = User.objects.all().order_by('last_name', 'first_name', 'username')
+        self.fields['members'].label_from_instance = lambda u: (
+            f"{u.last_name} {u.first_name}".strip() or u.username
+        )
+
     class Meta:
         model = Team
         fields = ['name', 'description', 'members']
@@ -108,6 +115,49 @@ class TeamForm(forms.ModelForm):
 
 
 class MembershipForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['user'].queryset = User.objects.all().order_by('last_name', 'first_name', 'username')
+        self.fields['user'].label_from_instance = lambda u: (
+            f"{u.last_name} {u.first_name}".strip() or u.username
+        )
+
     class Meta:
         model = Membership
         fields = ['user', 'role']
+
+
+class UserEditForm(forms.ModelForm):
+    role = forms.ChoiceField(
+        label='Rola',
+        choices=[('member', 'Člen tímu'), ('manager', 'Manažér')],
+        required=True
+    )
+
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email']
+        labels = {
+            'username': 'Používateľské meno',
+            'first_name': 'Meno',
+            'last_name': 'Priezvisko',
+            'email': 'E-mail',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            is_manager = self.instance.groups.filter(name='manager').exists()
+            self.fields['role'].initial = 'manager' if is_manager else 'member'
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if commit:
+            from django.contrib.auth.models import Group
+            role = self.cleaned_data.get('role')
+            manager_group, _ = Group.objects.get_or_create(name='manager')
+            if role == 'manager':
+                user.groups.add(manager_group)
+            else:
+                user.groups.remove(manager_group)
+        return user

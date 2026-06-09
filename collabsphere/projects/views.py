@@ -353,7 +353,8 @@ def membership_add(request, project_pk):
             membership.project = project
             try:
                 membership.save()
-                messages.success(request, f'Používateľ {membership.user.username} bol pridaný do projektu.')
+                full_name = membership.user.get_full_name() or membership.user.username
+                messages.success(request, f'{full_name} bol pridaný do projektu.')
             except Exception:
                 messages.error(request, 'Tento používateľ je už členom projektu.')
             return redirect('project_detail', pk=project_pk)
@@ -415,7 +416,7 @@ def api_tasks(request):
     return JsonResponse({'count': len(data), 'results': data})
 
 
-# ─── User Create ──────────────────────────────────────────────────────────────
+# ─── User Create / List / Edit / Delete ──────────────────────────────────────
 
 @login_required
 @manager_required
@@ -426,10 +427,50 @@ def user_create(request):
         if form.is_valid():
             user = form.save()
             messages.success(request, f'Používateľ „{user.username}" bol vytvorený.')
-            return redirect('dashboard')
+            return redirect('user_list')
     else:
         form = UserCreateForm()
     return render(request, 'registration/user_create.html', {'form': form})
+
+
+@login_required
+@manager_required
+def user_list(request):
+    users = User.objects.all().order_by('last_name', 'first_name', 'username').prefetch_related('groups', 'teams')
+    for u in users:
+        u.is_manager = u.groups.filter(name='manager').exists()
+    return render(request, 'registration/user_list.html', {'users': users})
+
+
+@login_required
+@manager_required
+def user_edit(request, pk):
+    from .forms import UserEditForm
+    profile_user = get_object_or_404(User, pk=pk)
+    if request.method == 'POST':
+        form = UserEditForm(request.POST, instance=profile_user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Používateľ „{profile_user.username}" bol aktualizovaný.')
+            return redirect('user_list')
+    else:
+        form = UserEditForm(instance=profile_user)
+    return render(request, 'registration/user_edit.html', {'form': form, 'profile_user': profile_user})
+
+
+@login_required
+@manager_required
+def user_delete(request, pk):
+    profile_user = get_object_or_404(User, pk=pk)
+    if profile_user == request.user:
+        messages.error(request, 'Nemôžete vymazať vlastný účet.')
+        return redirect('user_list')
+    if request.method == 'POST':
+        username = profile_user.username
+        profile_user.delete()
+        messages.success(request, f'Používateľ „{username}" bol vymazaný.')
+        return redirect('user_list')
+    return render(request, 'projects/confirm_delete.html', {'object': profile_user, 'type': 'používateľa'})
 
 
 # ─── Calendar ─────────────────────────────────────────────────────────────────

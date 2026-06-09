@@ -33,8 +33,11 @@ urlpatterns = [
     path('calendar/', views.calendar_view, name='calendar'),
 
     # Users
+    path('users/', views.user_list, name='user_list'),
     path('users/new/', views.user_create, name='user_create'),
     path('users/<int:pk>/', views.user_detail, name='user_detail'),
+    path('users/<int:pk>/edit/', views.user_edit, name='user_edit'),
+    path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
 
     # API
     path('api/tasks/', views.api_tasks, name='api_tasks'),

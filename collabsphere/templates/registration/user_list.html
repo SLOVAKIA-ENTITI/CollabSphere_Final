@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Používatelia{% endblock %}
+{% block page_title %}Používatelia{% endblock %}
+{% block breadcrumb %}Používatelia{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'user_create' %}" class="btn btn-sm btn-primary">
+  <i class="bi bi-person-plus-fill me-1"></i>Nový používateľ
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header bg-white py-3">
+    <span class="fw-semibold"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Všetci používatelia ({{ users.count }})</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Meno a priezvisko</th>
+            <th>Používateľské meno</th>
+            <th>E-mail</th>
+            <th>Rola</th>
+            <th>Tímy</th>
+            <th class="text-end">Akcie</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width:36px;height:36px;font-weight:600;font-size:0.85rem;">
+                  {{ u.first_name|slice:":1"|upper|default:u.username|slice:":1"|upper }}
+                </div>
+                <span class="fw-semibold">{{ u.get_full_name|default:"—" }}</span>
+              </div>
+            </td>
+            <td><code class="text-muted small">{{ u.username }}</code></td>
+            <td class="text-muted small">{{ u.email|default:"—" }}</td>
+            <td>
+              {% if u.is_manager %}
+                <span class="badge bg-warning text-dark"><i class="bi bi-shield-fill me-1"></i>Manažér</span>
+              {% else %}
+                <span class="badge bg-secondary">Člen</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="text-muted small">{{ u.teams.count }}</span>
+            </td>
+            <td class="text-end">
+              <a href="{% url 'user_detail' u.pk %}" class="btn btn-sm btn-outline-secondary me-1" title="Detail">
+                <i class="bi bi-eye"></i>
+              </a>
+              <a href="{% url 'user_edit' u.pk %}" class="btn btn-sm btn-outline-primary me-1" title="Upraviť">
+                <i class="bi bi-pencil"></i>
+              </a>
+              {% if u != request.user %}
+              <a href="{% url 'user_delete' u.pk %}" class="btn btn-sm btn-outline-danger" title="Vymazať">
+                <i class="bi bi-trash"></i>
+              </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">Žiadni používatelia</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
