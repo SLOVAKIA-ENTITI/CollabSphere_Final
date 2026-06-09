@@ -16,7 +16,7 @@
           {% for field in form %}
           <div class="mb-3">
             <label class="form-label fw-semibold">{{ field.label }}</label>
-            {% if field.field.widget.input_type == 'select' %}
+            {% if field.field.widget.input_type == 'select' or field.name == 'role' %}
               <select name="{{ field.html_name }}" class="form-select">
                 {% for val, label in field.field.choices %}
                 <option value="{{ val }}" {% if field.value == val %}selected{% endif %}>{{ label }}</option>
@@ -53,29 +53,29 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {% for form in formset %}
+                    {% for fs_form in formset %}
                       <tr>
                         <td>
-                          {% for hidden in form.hidden_fields %}
+                          {% for hidden in fs_form.hidden_fields %}
                             {{ hidden }}
                           {% endfor %}
                           
-                          {{ form.project }}
-                          {% if form.project.errors %}
-                            <div class="text-danger small mt-1">{{ form.project.errors }}</div>
+                          {{ fs_form.project }}
+                          {% if fs_form.project.errors %}
+                            <div class="text-danger small mt-1">{{ fs_form.project.errors }}</div>
                           {% endif %}
                         </td>
                         <td>
-                          {{ form.role }}
-                          {% if form.role.errors %}
-                            <div class="text-danger small mt-1">{{ form.role.errors }}</div>
+                          {{ fs_form.role }}
+                          {% if fs_form.role.errors %}
+                            <div class="text-danger small mt-1">{{ fs_form.role.errors }}</div>
                           {% endif %}
                         </td>
                         {% if formset.can_delete %}
                           <td class="text-center">
-                            {% if form.instance.pk %}
+                            {% if fs_form.instance.pk %}
                               <div class="form-check d-flex justify-content-center">
-                                {{ form.DELETE }}
+                                {{ fs_form.DELETE }}
                               </div>
                             {% else %}
                               <span class="text-muted small">—</span>
