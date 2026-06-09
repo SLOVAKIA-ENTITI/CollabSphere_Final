@@ -166,8 +166,14 @@ class UserEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
-            is_manager = self.instance.groups.filter(name='manager').exists()
-            self.fields['role'].initial = 'manager' if is_manager else 'member'
+            # Kontrola, či ide o hlavného admina
+            if self.instance.username == 'admin':
+                # Prepíšeme zobrazenie v select boxe na "Admin"
+                self.fields['role'].choices = [('manager', 'Admin')]
+                self.fields['role'].initial = 'manager'
+            else:
+                is_manager = self.instance.groups.filter(name='manager').exists()
+                self.fields['role'].initial = 'manager' if is_manager else 'member'
 
     def save(self, commit=True):
         user = super().save(commit=commit)
@@ -175,10 +181,15 @@ class UserEditForm(forms.ModelForm):
             from django.contrib.auth.models import Group
             role = self.cleaned_data.get('role')
             manager_group, _ = Group.objects.get_or_create(name='manager')
-            if role == 'manager':
+            
+            # POISTKA: Ak ukladáme admina, vždy mu manažérsku skupinu ponecháme
+            if user.username == 'admin':
                 user.groups.add(manager_group)
             else:
-                user.groups.remove(manager_group)
+                if role == 'manager':
+                    user.groups.add(manager_group)
+                else:
+                    user.groups.remove(manager_group)
         return user
 
 
