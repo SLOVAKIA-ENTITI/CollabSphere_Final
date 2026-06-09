@@ -9,14 +9,41 @@
       <div class="card-body p-4">
         <form method="post">
           {% csrf_token %}
+          
           {% for field in form %}
-          <div class="mb-3">
-            <label class="form-label fw-semibold">{{ field.label }}</label>
-            {{ field }}
-            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
-            {% if field.help_text %}<div class="text-muted small mt-1">{{ field.help_text }}</div>{% endif %}
-          </div>
+            {% if field.name == 'external_members' %}
+              <div class="mb-3">
+                <label class="form-label fw-semibold">{{ field.label }}</label>
+                <div class="text-muted small mb-2">Vyberte dodatočných ľudí mimo priradeného tímu, ktorí majú na projekte pracovať.</div>
+                
+                <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                  {% for checkbox in field %}
+                    <div class="form-check mb-1 d-flex align-items-center gap-2">
+                      {{ checkbox.tag }}
+                      <label class="form-check-label small mb-0" for="{{ checkbox.id_for_label }}">
+                        {{ checkbox.choice_label }}
+                      </label>
+                    </div>
+                  {% endfor %}
+                </div>
+                
+                {% if field.errors %}
+                  <div class="text-danger small mt-1">{{ field.errors }}</div>
+                {% endif %}
+                {% if field.help_text %}
+                  <div class="text-muted small mt-1">{{ field.help_text }}</div>
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="mb-3">
+                <label class="form-label fw-semibold">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+                {% if field.help_text %}<div class="text-muted small mt-1">{{ field.help_text }}</div>{% endif %}
+              </div>
+            {% endif %}
           {% endfor %}
+
           <div class="d-flex gap-2 mt-4">
             <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Uložiť</button>
             <a href="{% if project %}{% url 'project_detail' project.pk %}{% else %}{% url 'project_list' %}{% endif %}" class="btn btn-outline-secondary">Zrušiť</a>
@@ -34,9 +61,15 @@
 {% block extra_js %}
 <script>
 document.querySelectorAll('input, select, textarea').forEach(el => {
-  if (!el.classList.contains('form-control') && !el.classList.contains('form-select')) {
-    if (el.tagName === 'SELECT') el.classList.add('form-select');
-    else if (el.type !== 'checkbox') el.classList.add('form-control');
+  // Ak ide o checkbox pre externých členov, dáme mu správny Bootstrap štýl
+  if (el.type === 'checkbox') {
+    el.classList.add('form-check-input');
+  } else if (!el.classList.contains('form-control') && !el.classList.contains('form-select')) {
+    if (el.tagName === 'SELECT') {
+      el.classList.add('form-select');
+    } else {
+      el.classList.add('form-control');
+    }
   }
 });
 </script>
