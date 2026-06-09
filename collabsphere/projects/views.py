@@ -254,10 +254,12 @@ def task_create(request, project_pk=None):
     else:
         initial = {'project': project} if project else {}
         form = TaskForm(initial=initial)
-        if project:
-            form.fields['assignee'].queryset = User.objects.filter(projects=project)
+        
+    # OPRAVA: Filtrovanie používateľov iba pre daný projekt (platí aj keď project_pk príde z URL)
+    if project and 'assignee' in form.fields:
+        form.fields['assignee'].queryset = User.objects.filter(projects=project)
             
-    # OPRAVA: Zmena username na Meno Priezvisko vo formulári vytvorenia úlohy
+    # Zmena username na Meno Priezvisko
     if 'assignee' in form.fields:
         form.fields['assignee'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username}"
         
@@ -285,13 +287,15 @@ def task_edit(request, pk):
     else:
         form = TaskForm(instance=task) if is_manager else __import__('projects.forms', fromlist=['TaskStatusForm']).TaskStatusForm(instance=task)
     
-    # OPRAVA: Zmena username na Meno Priezvisko vo formulári úpravy úlohy
+    # KĽÚČOVÁ OPRAVA: Pri editácii vyfiltrujeme ľudí iba z projektu, ktorému táto úloha patrí
+    if 'assignee' in form.fields and task.project:
+        form.fields['assignee'].queryset = User.objects.filter(projects=task.project)
+
+    # Zmena username na Meno Priezvisko
     if 'assignee' in form.fields:
         form.fields['assignee'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username}"
         
     return render(request, 'tasks/task_form.html', {'form': form, 'title': 'Upraviť úlohu', 'task': task, 'is_manager': is_manager})
-
-
 @login_required
 @manager_required
 def task_delete(request, pk):
