@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Upraviť používateľa{% endblock %}
+{% block page_title %}Upraviť používateľa{% endblock %}
+{% block breadcrumb %}Používatelia{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header bg-white py-3 fw-semibold">
+        <i class="bi bi-person-gear me-2 text-primary"></i>{{ profile_user.get_full_name|default:profile_user.username }}
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold">{{ field.label }}</label>
+            {% if field.field.widget.input_type == 'select' %}
+              <select name="{{ field.html_name }}" class="form-select">
+                {% for val, label in field.field.choices %}
+                <option value="{{ val }}" {% if field.value == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="{{ field.field.widget.input_type }}"
+                     name="{{ field.html_name }}"
+                     value="{{ field.value|default:'' }}"
+                     class="form-control"
+                     {% if field.field.required %}required{% endif %}>
+            {% endif %}
+            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+          </div>
+          {% endfor %}
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Uložiť</button>
+            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary">Zrušiť</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
