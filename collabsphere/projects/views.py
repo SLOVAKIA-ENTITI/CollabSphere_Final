@@ -537,6 +537,12 @@ def user_edit(request, pk):
             form.save()
             formset.save()
             messages.success(request, f'Používateľ {edit_user.get_full_name() or edit_user.username} bol úspešne upravený.')
+            
+            # KĽÚČOVÁ ZMENA: Kontrola parametra 'next' pre dynamický návrat
+            next_url = request.GET.get('next')
+            if next_url:
+                return redirect(next_url)
+                
             return redirect('user_list')
     else:
         form = UserEditForm(instance=edit_user)
