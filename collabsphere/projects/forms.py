@@ -72,7 +72,7 @@ class ProjectForm(forms.ModelForm):
                     'class': 'form-control'
                 }
             ),
-         Levin
+        }
     def clean_deadline(self):
         deadline = self.cleaned_data.get('deadline')
         if deadline:
