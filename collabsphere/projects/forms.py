@@ -51,7 +51,6 @@ class UserCreateForm(forms.ModelForm):
                 user.groups.add(group)
         return user
 class ProjectForm(forms.ModelForm):
-    class ProjectForm(forms.ModelForm):
     # Pridané pole pre výber externých ľudí mimo tímu (nepovinné)
     external_members = forms.ModelMultipleChoiceField(
         queryset=User.objects.all(),
