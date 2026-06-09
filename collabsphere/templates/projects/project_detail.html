@@ -86,13 +86,19 @@
                                 <div class="small text-muted">{{ m.get_role_display }}</div>
                             </div>
                         </div>
+                        
                         {% if is_manager %}
-                        <form method="post" action="{% url 'membership_remove' project.pk m.user.pk %}" onsubmit="return confirm('Naozaj chcete odstrániť tohto člena z projektu?')">
-                            {% csrf_token %}
-                            <button class="btn btn-sm btn-light text-danger rounded-circle" style="width: 32px; height: 32px; padding: 0;">
-                                <i class="bi bi-x"></i>
-                            </button>
-                        </form>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'user_edit' m.user.pk %}?next={{ request.path }}" class="btn btn-sm btn-light text-primary rounded-circle" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" title="Upraviť rolu člena">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post" action="{% url 'membership_remove' project.pk m.user.pk %}" onsubmit="return confirm('Naozaj chcete odstrániť tohto člena z projektu?')">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-light text-danger rounded-circle" style="width: 32px; height: 32px; padding: 0;">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </form>
+                        </div>
                         {% endif %}
                     </div>
                     {% empty %}
