@@ -524,19 +524,31 @@ def user_list(request):
 @login_required
 @manager_required
 def user_edit(request, pk):
-    from .forms import UserEditForm
-    profile_user = get_object_or_404(User, pk=pk)
+    edit_user = get_object_or_404(User, pk=pk)
+    
     if request.method == 'POST':
-        form = UserEditForm(request.POST, instance=profile_user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f'Používateľ „{profile_user.username}" bol aktualizovaný.')
+        # Predpokladám, že tu máš svoj pôvodný User form (napr. UserEditForm)
+        # form = UserEditForm(request.POST, instance=edit_user)
+        
+        # Pridáme spracovanie nášho formsetu pre projekty a roly
+        formset = MembershipFormSet(request.POST, instance=edit_user)
+        
+        # Ak sú oba formuláre validné, uložíme ich
+        if formset.is_valid(): # prípadne if form.is_valid() and formset.is_valid():
+            # form.save()
+            formset.save()
+            messages.success(request, f'Používateľ {edit_user.username} a jeho roly boli úspešne upravené.')
             return redirect('user_list')
     else:
-        form = UserEditForm(instance=profile_user)
-    return render(request, 'registration/user_edit.html', {'form': form, 'profile_user': profile_user})
-
-
+        # form = UserEditForm(instance=edit_user)
+        formset = MembershipFormSet(instance=edit_user)
+        
+    return render(request, 'registration/user_form.html', {
+        # 'form': form,
+        'formset': formset,
+        'edit_user': edit_user,
+        'title': f'Upraviť používateľa: {edit_user.username}'
+    })
 @login_required
 @manager_required
 def user_delete(request, pk):
