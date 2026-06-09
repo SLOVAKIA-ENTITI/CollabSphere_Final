@@ -21,7 +21,6 @@
       {% endif %}
     </span>
 
-    <!-- Vyhľadávací formulár (zachováva aj zvolené zoradenie) -->
     <form method="get" action="" style="max-width: 300px;" class="w-100">
       {% if current_order %}
         <input type="hidden" name="order_by" value="{{ current_order }}">
@@ -43,29 +42,27 @@
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
+        <thead class="table-dark">
           <tr>
-            <!-- Klikateľné zoradenie podľa Priezviska / Mename -->
             <th>
               <div class="d-flex gap-3">
-                <a href="?search={{ search_query }}&order_by={% if current_order == 'first_name' %}-first_name{% else %}first_name{% endif %}" class="text-dark text-decoration-none fw-bold">
+                <a href="?search={{ search_query }}&order_by={% if current_order == 'first_name' %}-first_name{% else %}first_name{% endif %}" class="text-white text-decoration-none fw-bold small">
                   Meno {% if current_order == 'first_name' %}⬇️{% elif current_order == '-first_name' %}⬆️{% endif %}
                 </a>
-                <a href="?search={{ search_query }}&order_by={% if current_order == 'last_name' or not current_order %}-last_name{% else %}last_name{% endif %}" class="text-dark text-decoration-none fw-bold">
+                <a href="?search={{ search_query }}&order_by={% if current_order == 'last_name' or not current_order %}-last_name{% else %}last_name{% endif %}" class="text-white text-decoration-none fw-bold small">
                   Priezvisko {% if current_order == 'last_name' or not current_order %}⬇️{% elif current_order == '-last_name' %}⬆️{% endif %}
                 </a>
               </div>
             </th>
-            <th>Používateľské meno</th>
-            <th>E-mail</th>
-            <!-- Klikateľné zoradenie podľa Role -->
+            <th class="small text-white">Používateľské meno</th>
+            <th class="small text-white">E-mail</th>
             <th>
-              <a href="?search={{ search_query }}&order_by={% if current_order == 'role' %}-role{% else %}role{% endif %}" class="text-dark text-decoration-none fw-bold">
+              <a href="?search={{ search_query }}&order_by={% if current_order == 'role' %}-role{% else %}role{% endif %}" class="text-white text-decoration-none fw-bold small">
                 Rola {% if current_order == 'role' %}⬇️{% elif current_order == '-role' %}⬆️{% endif %}
               </a>
             </th>
-            <th>Tímy</th>
-            <th class="text-end">Akcie</th>
+            <th class="small text-white">Tímy</th>
+            <th class="text-end small text-white pe-3">Akcie</th>
           </tr>
         </thead>
         <tbody>
@@ -83,7 +80,9 @@
             <td><code class="text-muted small">{{ u.username }}</code></td>
             <td class="text-muted small">{{ u.email|default:"—" }}</td>
             <td>
-              {% if u.is_manager %}
+              {% if u.username == 'admin' %}
+                <span class="badge bg-danger text-white"><i class="bi bi-shield-lock-fill me-1"></i>Admin</span>
+              {% elif u.is_manager %}
                 <span class="badge bg-warning text-dark"><i class="bi bi-shield-fill me-1"></i>Manažér</span>
               {% else %}
                 <span class="badge bg-secondary">Člen</span>
@@ -92,7 +91,7 @@
             <td>
               <span class="text-muted small">{{ u.teams.count }}</span>
             </td>
-            <td class="text-end">
+            <td class="text-end pe-3">
               <a href="{% url 'user_detail' u.pk %}" class="btn btn-sm btn-outline-secondary me-1" title="Detail">
                 <i class="bi bi-eye"></i>
               </a>
