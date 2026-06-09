@@ -34,16 +34,18 @@
           {% endfor %}
 
           <h5 class="mt-4 mb-3 fw-bold text-secondary">
+            <!-- NOVÁ SEKCIA: PROJEKTY A ROLY (UPRAVENÁ PRE TMAVÝ REŽIM) -->
+          <h5 class="mt-4 mb-3 fw-bold text-secondary">
             <i class="bi bi-folder-symlink me-2"></i>Priradenie do projektov a pracovné roly
           </h5>
           
-          <div class="card mb-4 bg-light border-0">
+          <div class="card mb-4 bg-transparent border-0">
             <div class="card-body p-0">
-              <div class="table-responsive rounded border bg-white">
+              <div class="table-responsive rounded border border-secondary bg-transparent">
                 {{ formset.management_form }}
                 
-                <table class="table table-hover align-middle mb-0 text-nowrap">
-                  <thead class="table-light">
+                <table class="table table-hover align-middle mb-0 text-nowrap text-white">
+                  <thead class="table-dark text-secondary">
                     <tr>
                       <th>Projekt</th>
                       <th>Pracovná rola v projekte</th>
@@ -54,7 +56,7 @@
                   </thead>
                   <tbody>
                     {% for fs_form in formset %}
-                      <tr>
+                      <tr class="border-secondary">
                         <td>
                           {% for hidden in fs_form.hidden_fields %}
                             {{ hidden }}
