@@ -8,6 +8,8 @@ from django.db.models import Q
 from .models import Project, Task, Team, Membership
 from .forms import ProjectForm, TaskForm, TeamForm, MembershipForm
 from .decorators import manager_required
+from django.db.models import Q, Value
+from django.db.models.functions import Concat
 
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -436,28 +438,56 @@ def user_create(request):
 @login_required
 @manager_required
 def user_list(request):
-    # Zachytenie hľadaného výrazu z GET požiadavky
     query = request.GET.get('search', '').strip()
+    order_by = request.GET.get('order_by', 'last_name') # Predvolené zoradenie podľa priezviska
     
-    users = User.objects.all().order_by('last_name', 'first_name', 'username').prefetch_related('groups', 'teams')
+    # 1. Základný queryset s prepojenými tabuľkami
+    users = User.objects.all().prefetch_related('groups', 'teams')
     
-    # Ak používateľ niečo zadal do vyhľadávania, aplikujeme filter
-    if query:
-        users = users.filter(
-            Q(first_name__icontains=query) |
-            Q(last_name__icontains=query) |
-            Q(username__icontains=query)
-        )
-        
+    # Priradenie atribútu is_manager (potrebujeme to kvôli neskoršiemu zoradeniu podľa roly)
     for u in users:
         u.is_manager = u.groups.filter(name='manager').exists()
+    
+    # 2. Inteligentné vyhľadávanie (podporuje aj "Meno Priezvisko" s medzerou)
+    if query:
+        users = users.annotate(
+            full_name_space=Concat('first_name', Value(' '), 'last_name'),
+            full_name_reverse=Concat('last_name', Value(' '), 'first_name')
+        ).filter(
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(username__icontains=query) |
+            Q(full_name_space__icontains=query) |  # Hľadá "Ján Kováč"
+            Q(full_name_reverse__icontains=query)   # Hľadá "Kováč Ján"
+        )
         
+    # 3. Dynamické zoradenie na úrovni Pythonu / Databázy
+    # Python list conversion na flexibilné zoradenie podľa roly (is_manager)
+    users_list = list(users)
+    
+    if order_by == 'first_name':
+        users_list.sort(key=lambda x: (x.first_name.lower(), x.last_name.lower(), x.username.lower()))
+    elif order_by == '-first_name':
+        users_list.sort(key=lambda x: (x.first_name.lower(), x.last_name.lower(), x.username.lower()), reverse=True)
+    elif order_by == 'last_name':
+        users_list.sort(key=lambda x: (x.last_name.lower(), x.first_name.lower(), x.username.lower()))
+    elif order_by == '-last_name':
+        users_list.sort(key=lambda x: (x.last_name.lower(), x.first_name.lower(), x.username.lower()), reverse=True)
+    elif order_by == 'role':
+        # Manažéri prví, potom Členovia
+        users_list.sort(key=lambda x: (not x.is_manager, x.last_name.lower()))
+    elif order_by == '-role':
+        # Členovia prví, potom Manažéri
+        users_list.sort(key=lambda x: (x.is_manager, x.last_name.lower()))
+    else:
+        # Predvolené záložné zoradenie
+        users_list.sort(key=lambda x: (x.last_name.lower(), x.first_name.lower()))
+
     return render(request, 'registration/user_list.html', {
-        'users': users,
-        'search_query': query  # Posielame výraz späť do šablóny
+        'users': users_list,
+        'search_query': query,
+        'current_order': order_by
     })
-
-
 @login_required
 @manager_required
 def user_edit(request, pk):
