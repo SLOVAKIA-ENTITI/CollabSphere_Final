@@ -436,10 +436,26 @@ def user_create(request):
 @login_required
 @manager_required
 def user_list(request):
+    # Zachytenie hľadaného výrazu z GET požiadavky
+    query = request.GET.get('search', '').strip()
+    
     users = User.objects.all().order_by('last_name', 'first_name', 'username').prefetch_related('groups', 'teams')
+    
+    # Ak používateľ niečo zadal do vyhľadávania, aplikujeme filter
+    if query:
+        users = users.filter(
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(username__icontains=query)
+        )
+        
     for u in users:
         u.is_manager = u.groups.filter(name='manager').exists()
-    return render(request, 'registration/user_list.html', {'users': users})
+        
+    return render(request, 'registration/user_list.html', {
+        'users': users,
+        'search_query': query  # Posielame výraz späť do šablóny
+    })
 
 
 @login_required
