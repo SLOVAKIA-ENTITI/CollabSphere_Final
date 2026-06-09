@@ -53,13 +53,17 @@
                 </p>
                 
                 <div class="d-flex justify-content-between align-items-center pt-3 border-top">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-calendar3 text-muted me-2"></i>
-                        <span class="small text-muted">{{ p.deadline|default:"Bez termínu" }}</span>
+                    <div class="d-flex align-items-center min-w-0 me-2">
+                        <i class="bi bi-calendar3 text-muted me-2 flex-shrink-0"></i>
+                        {% if p.deadline %}
+                            <span class="small text-muted text-nowrap" title="{{ p.deadline }}">{{ p.deadline|date:"d. M Y" }}</span>
+                        {% else %}
+                            <span class="small text-muted text-nowrap">Bez termínu</span>
+                        {% endif %}
                     </div>
                     {% if p.team %}
-                    <div class="badge bg-info bg-opacity-10 text-info border-0">
-                        <i class="bi bi-people-fill me-1"></i> {{ p.team.name }}
+                    <div class="badge bg-info bg-opacity-10 text-info border-0 text-truncate" title="{{ p.team.name }}" style="max-width: 60%;">
+                        <i class="bi bi-people-fill me-1 flex-shrink-0"></i> {{ p.team.name }}
                     </div>
                     {% endif %}
                 </div>
