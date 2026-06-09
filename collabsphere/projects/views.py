@@ -527,27 +527,25 @@ def user_edit(request, pk):
     edit_user = get_object_or_404(User, pk=pk)
     
     if request.method == 'POST':
-        # Predpokladám, že tu máš svoj pôvodný User form (napr. UserEditForm)
-        # form = UserEditForm(request.POST, instance=edit_user)
-        
-        # Pridáme spracovanie nášho formsetu pre projekty a roly
+        # Použijeme tvoj presný UserEditForm
+        form = UserEditForm(request.POST, instance=edit_user)
+        # Spracujeme aj tabuľku s projektmi a rolami
         formset = MembershipFormSet(request.POST, instance=edit_user)
         
-        # Ak sú oba formuláre validné, uložíme ich
-        if formset.is_valid(): # prípadne if form.is_valid() and formset.is_valid():
-            # form.save()
+        if form.is_valid() and formset.is_valid():
+            form.save()
             formset.save()
-            messages.success(request, f'Používateľ {edit_user.username} a jeho roly boli úspešne upravené.')
+            messages.success(request, f'Používateľ {edit_user.get_full_name() or edit_user.username} bol úspešne upravený.')
             return redirect('user_list')
     else:
-        # form = UserEditForm(instance=edit_user)
+        form = UserEditForm(instance=edit_user)
         formset = MembershipFormSet(instance=edit_user)
         
     return render(request, 'registration/user_form.html', {
-        # 'form': form,
+        'form': form,
         'formset': formset,
-        'edit_user': edit_user,
-        'title': f'Upraviť používateľa: {edit_user.username}'
+        'profile_user': edit_user,  # Posielame do šablóny pre zobrazenie mena v hlavičke card-header
+        'title': 'Upraviť používateľa'
     })
 @login_required
 @manager_required
