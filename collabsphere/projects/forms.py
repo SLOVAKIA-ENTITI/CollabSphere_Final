@@ -146,41 +146,39 @@ class MembershipForm(forms.ModelForm):
         fields = ['user', 'role']
 
 class UserEditForm(forms.ModelForm):
-    role = forms.ChoiceField(
-        label='Rola',
-        choices=[('member', 'Člen tímu'), ('manager', 'Manažér')],
-        required=True
-    )
+    role = forms.ChoiceField(
+        label='Rola',
+        choices=[('member', 'Člen tímu'), ('manager', 'Manažér')],
+        required=True
+    )
 
-    class Meta:
-        model = User
-        fields = ['username', 'first_name', 'last_name', 'email']
-        labels = {
-            'username': 'Používateľské meno',
-            'first_name': 'Meno',
-            'last_name': 'Priezvisko',
-            'email': 'E-mail',
-        }
+    class Meta:
+        model = User
+        fields = ['username', 'first_name', 'last_name', 'email']
+        labels = {
+            'username': 'Používateľské meno',
+            'first_name': 'Meno',
+            'last_name': 'Priezvisko',
+            'email': 'E-mail',
+        }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk:
-            is_manager = self.instance.groups.filter(name='manager').exists()
-            self.fields['role'].initial = 'manager' if is_manager else 'member'
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            is_manager = self.instance.groups.filter(name='manager').exists()
+            self.fields['role'].initial = 'manager' if is_manager else 'member'
 
-    def save(self, commit=True):
-        user = super().save(commit=commit)
-        if commit:
-            from django.contrib.auth.models import Group
-            role = self.cleaned_data.get('role')
-            manager_group, _ = Group.objects.get_or_create(name='manager')
-            if role == 'manager':
-                user.groups.add(manager_group)
-            else:
-                user.groups.remove(manager_group)
-        return user
-
-
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if commit:
+            from django.contrib.auth.models import Group
+            role = self.cleaned_data.get('role')
+            manager_group, _ = Group.objects.get_or_create(name='manager')
+            if role == 'manager':
+                user.groups.add(manager_group)
+            else:
+                user.groups.remove(manager_group)
+        return user
 
 # Formset pre správu rolí používateľa v projektoch priamo v jeho editácii
 MembershipFormSet = forms.inlineformset_factory(
