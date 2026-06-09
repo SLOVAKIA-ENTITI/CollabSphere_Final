@@ -11,26 +11,28 @@
 
 {% block content %}
 <div class="card">
-  <!-- Upravená hlavička s vyhľadávacím formulárom -->
   <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
     <span class="fw-semibold">
       <i class="bi bi-person-lines-fill me-2 text-primary"></i>
       {% if search_query %}
-        Nájdení používatelia ({{ users.count }})
+        Nájdení používatelia ({{ users|length }})
       {% else %}
-        Všetci používatelia ({{ users.count }})
+        Všetci používatelia ({{ users|length }})
       {% endif %}
     </span>
 
-    <!-- Vyhľadávací formulár -->
+    <!-- Vyhľadávací formulár (zachováva aj zvolené zoradenie) -->
     <form method="get" action="" style="max-width: 300px;" class="w-100">
+      {% if current_order %}
+        <input type="hidden" name="order_by" value="{{ current_order }}">
+      {% endif %}
       <div class="input-group input-group-sm">
-        <input type="text" name="search" class="form-control" placeholder="Hľadať používateľa..." value="{{ search_query }}">
+        <input type="text" name="search" class="form-control" placeholder="Hľadať meno, priezvisko..." value="{{ search_query }}">
         <button class="btn btn-outline-primary" type="submit" title="Hľadať">
           <i class="bi bi-search"></i>
         </button>
         {% if search_query %}
-          <a href="?" class="btn btn-outline-danger" title="Zrušiť filter">
+          <a href="?{% if current_order %}order_by={{ current_order }}{% endif %}" class="btn btn-outline-danger" title="Zrušiť filter">
             <i class="bi bi-x-lg"></i>
           </a>
         {% endif %}
@@ -43,10 +45,25 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th>Meno a priezvisko</th>
+            <!-- Klikateľné zoradenie podľa Priezviska / Mename -->
+            <th>
+              <div class="d-flex gap-3">
+                <a href="?search={{ search_query }}&order_by={% if current_order == 'first_name' %}-first_name{% else %}first_name{% endif %}" class="text-dark text-decoration-none fw-bold">
+                  Meno {% if current_order == 'first_name' %}⬇️{% elif current_order == '-first_name' %}⬆️{% endif %}
+                </a>
+                <a href="?search={{ search_query }}&order_by={% if current_order == 'last_name' or not current_order %}-last_name{% else %}last_name{% endif %}" class="text-dark text-decoration-none fw-bold">
+                  Priezvisko {% if current_order == 'last_name' or not current_order %}⬇️{% elif current_order == '-last_name' %}⬆️{% endif %}
+                </a>
+              </div>
+            </th>
             <th>Používateľské meno</th>
             <th>E-mail</th>
-            <th>Rola</th>
+            <!-- Klikateľné zoradenie podľa Role -->
+            <th>
+              <a href="?search={{ search_query }}&order_by={% if current_order == 'role' %}-role{% else %}role{% endif %}" class="text-dark text-decoration-none fw-bold">
+                Rola {% if current_order == 'role' %}⬇️{% elif current_order == '-role' %}⬆️{% endif %}
+              </a>
+            </th>
             <th>Tímy</th>
             <th class="text-end">Akcie</th>
           </tr>
