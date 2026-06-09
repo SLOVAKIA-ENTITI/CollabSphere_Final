@@ -542,7 +542,7 @@ def user_edit(request, pk):
         form = UserEditForm(instance=edit_user)
         formset = MembershipFormSet(instance=edit_user)
         
-    return render(request, 'registration/user_form.html', {
+    return render(request, 'registration/user_edit.html', {
         'form': form,
         'formset': formset,
         'profile_user': edit_user,  # Posielame do šablóny pre zobrazenie mena v hlavičke card-header
