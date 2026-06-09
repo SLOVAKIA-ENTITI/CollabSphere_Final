@@ -4,11 +4,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Q, Value  # Spojené Q a Value do jedného riadku
+from django.db.models import Q, Value
 from django.db.models.functions import Concat
 from .models import Project, Task, Team, Membership
 
-# TU JE ZMENA: Pridali sme UserEditForm a MembershipFormSet do importu
+# Import formulárov
 from .forms import ProjectForm, TaskForm, TeamForm, MembershipForm, UserEditForm, MembershipFormSet
 from .decorators import manager_required
 
@@ -45,6 +45,10 @@ def dashboard(request):
             'score': score,
             'done': done_count,
         })
+    
+    # OPRAVA: Zoradenie členov na Dashboarde podľa priezviska a mena
+    workload.sort(key=lambda x: (x['user'].last_name.lower(), x['user'].first_name.lower(), x['user'].username.lower()))
+
     max_score = max((w['score'] for w in workload), default=1) or 1
     for w in workload:
         w['percent'] = round(w['score'] / max_score * 100)
@@ -120,54 +124,43 @@ def project_detail(request, pk):
     })
 
 
-
 @login_required
 @manager_required
 def project_create(request):
     if request.method == 'POST':
         form = ProjectForm(request.POST)
         if form.is_valid():
-            # 1. Uloženie samotného projektu
             project = form.save()
-            
-            # Množina (set) ID používateľov, ktorých do projektu pridáme, aby sme predišli duplicitám
             members_to_add = set()
 
-            # 2. AUTOMATICKÉ PRIDANIE ČLENOV Z TÍMU
-            # Ak bol k projektu priradený tím, vytiahneme z neho všetkých používateľov
             if project.team:
                 team_users = project.team.members.all()
                 for user in team_users:
                     members_to_add.add(user)
 
-            # 3. PRIDANIE EXTERNÝCH ČLENOV Z FORMULÁRA
-            # Vytiahneme používateľov, ktorých manažér zaklikol manuálne ako externých
             external_users = form.cleaned_data.get('external_members')
             if external_users:
                 for user in external_users:
                     members_to_add.add(user)
 
-            # Bezpečne zabezpečíme, že tvorca projektu (request.user) tam bude tiež
             members_to_add.add(request.user)
 
-            # 4. Hromadné uloženie členov do tabuľky Membership
             for user in members_to_add:
-                # Nastavíme rolu: ak je to request.user, bude manager, inak bežný člen (developer)
                 role_type = 'manager' if user == request.user else 'developer'
-                
-                # Použijeme get_or_create pre prípad, že by sa nejaká podmienka prekrývala
                 Membership.objects.get_or_create(
                     user=user,
                     project=project,
                     defaults={'role': role_type}
                 )
 
-            messages.success(request, f'Projekt „{project.name}“ bol úspešne vytvorený s členmi tímu a externými riešiteľmi.')
+            messages.success(request, f'Projekt „{project.name}“ bol úspešne vytvorený.')
             return redirect('project_detail', pk=project.pk)
     else:
         form = ProjectForm()
         
     return render(request, 'projects/project_form.html', {'form': form, 'title': 'Nový projekt'})
+
+
 @login_required
 @manager_required
 def project_edit(request, pk):
@@ -263,6 +256,11 @@ def task_create(request, project_pk=None):
         form = TaskForm(initial=initial)
         if project:
             form.fields['assignee'].queryset = User.objects.filter(projects=project)
+            
+    # OPRAVA: Zmena username na Meno Priezvisko vo formulári vytvorenia úlohy
+    if 'assignee' in form.fields:
+        form.fields['assignee'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username}"
+        
     return render(request, 'tasks/task_form.html', {'form': form, 'title': 'Nová úloha', 'project': project})
 
 
@@ -286,6 +284,11 @@ def task_edit(request, pk):
             return redirect('task_detail', pk=pk)
     else:
         form = TaskForm(instance=task) if is_manager else __import__('projects.forms', fromlist=['TaskStatusForm']).TaskStatusForm(instance=task)
+    
+    # OPRAVA: Zmena username na Meno Priezvisko vo formulári úpravy úlohy
+    if 'assignee' in form.fields:
+        form.fields['assignee'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username}"
+        
     return render(request, 'tasks/task_form.html', {'form': form, 'title': 'Upraviť úlohu', 'task': task, 'is_manager': is_manager})
 
 
@@ -398,6 +401,11 @@ def membership_add(request, project_pk):
         form = MembershipForm()
         existing = project.members.all()
         form.fields['user'].queryset = User.objects.exclude(pk__in=existing)
+        
+    # OPRAVA: Zmena na Meno Priezvisko pri pridávaní člena do projektu
+    if 'user' in form.fields:
+        form.fields['user'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username}"
+        
     return render(request, 'projects/membership_form.html', {'form': form, 'project': project})
 
 
@@ -473,16 +481,13 @@ def user_create(request):
 @manager_required
 def user_list(request):
     query = request.GET.get('search', '').strip()
-    order_by = request.GET.get('order_by', 'last_name') # Predvolené zoradenie podľa priezviska
+    order_by = request.GET.get('order_by', 'last_name')
     
-    # 1. Základný queryset s prepojenými tabuľkami
     users = User.objects.all().prefetch_related('groups', 'teams')
     
-    # Priradenie atribútu is_manager (potrebujeme to kvôli neskoršiemu zoradeniu podľa roly)
     for u in users:
         u.is_manager = u.groups.filter(name='manager').exists()
     
-    # 2. Inteligentné vyhľadávanie (podporuje aj "Meno Priezvisko" s medzerou)
     if query:
         users = users.annotate(
             full_name_space=Concat('first_name', Value(' '), 'last_name'),
@@ -491,12 +496,10 @@ def user_list(request):
             Q(first_name__icontains=query) |
             Q(last_name__icontains=query) |
             Q(username__icontains=query) |
-            Q(full_name_space__icontains=query) |  # Hľadá "Ján Kováč"
-            Q(full_name_reverse__icontains=query)   # Hľadá "Kováč Ján"
+            Q(full_name_space__icontains=query) |
+            Q(full_name_reverse__icontains=query)
         )
         
-    # 3. Dynamické zoradenie na úrovni Pythonu / Databázy
-    # Python list conversion na flexibilné zoradenie podľa roly (is_manager)
     users_list = list(users)
     
     if order_by == 'first_name':
@@ -508,13 +511,10 @@ def user_list(request):
     elif order_by == '-last_name':
         users_list.sort(key=lambda x: (x.last_name.lower(), x.first_name.lower(), x.username.lower()), reverse=True)
     elif order_by == 'role':
-        # Manažéri prví, potom Členovia
         users_list.sort(key=lambda x: (not x.is_manager, x.last_name.lower()))
     elif order_by == '-role':
-        # Členovia prví, potom Manažéri
         users_list.sort(key=lambda x: (x.is_manager, x.last_name.lower()))
     else:
-        # Predvolené záložné zoradenie
         users_list.sort(key=lambda x: (x.last_name.lower(), x.first_name.lower()))
 
     return render(request, 'registration/user_list.html', {
@@ -522,15 +522,15 @@ def user_list(request):
         'search_query': query,
         'current_order': order_by
     })
+
+
 @login_required
 @manager_required
 def user_edit(request, pk):
     edit_user = get_object_or_404(User, pk=pk)
     
     if request.method == 'POST':
-        # Použijeme tvoj presný UserEditForm
         form = UserEditForm(request.POST, instance=edit_user)
-        # Spracujeme aj tabuľku s projektmi a rolami
         formset = MembershipFormSet(request.POST, instance=edit_user)
         
         if form.is_valid() and formset.is_valid():
@@ -538,7 +538,6 @@ def user_edit(request, pk):
             formset.save()
             messages.success(request, f'Používateľ {edit_user.get_full_name() or edit_user.username} bol úspešne upravený.')
             
-            # KĽÚČOVÁ ZMENA: Kontrola parametra 'next' pre dynamický návrat
             next_url = request.GET.get('next')
             if next_url:
                 return redirect(next_url)
@@ -551,9 +550,11 @@ def user_edit(request, pk):
     return render(request, 'registration/user_edit.html', {
         'form': form,
         'formset': formset,
-        'profile_user': edit_user,  # Posielame do šablóny pre zobrazenie mena v hlavičke card-header
+        'profile_user': edit_user,
         'title': 'Upraviť používateľa'
     })
+
+
 @login_required
 @manager_required
 def user_delete(request, pk):
@@ -589,10 +590,7 @@ def calendar_view(request):
     from .holidays import get_slovak_holidays
     
     events = []
-    
-    # Add Slovak Holidays
     current_year = date.today().year
-    # Add holidays for current, previous and next year to cover calendar navigation
     for y in [current_year - 1, current_year, current_year + 1]:
         sk_holidays = get_slovak_holidays(y)
         for h_date, h_name in sk_holidays.items():
@@ -651,7 +649,6 @@ def user_detail(request, pk):
         if t.status != 'done':
             score += PRIORITY_WEIGHT.get(t.priority, 1)
 
-    # Timeline: tasks completed per week (last 8 weeks)
     now = timezone.now().date()
     weeks = []
     for i in range(7, -1, -1):
