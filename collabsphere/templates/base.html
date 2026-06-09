@@ -1,4 +1,4 @@
-{% load static %}
+{% load static auth_extras %}
 <!DOCTYPE html>
 <html lang="sk">
 <head>
@@ -47,9 +47,11 @@
         <a href="{% url 'team_list' %}" class="nav-link {% if 'team' in request.resolver_match.url_name %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Tímy
         </a>
+        {% if request.user|has_group:"manager" or request.user.is_superuser %}
         <a href="{% url 'user_list' %}" class="nav-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
             <i class="bi bi-person-lines-fill"></i> Používatelia
         </a>
+        {% endif %}
         <a href="{% url 'calendar' %}" class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}">
             <i class="bi bi-calendar-event-fill"></i> Kalendár
         </a>
