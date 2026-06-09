@@ -4,6 +4,9 @@ from .models import Project, Task, Team, Membership
 from django import forms
 from django.contrib.auth.models import User
 from .models import Project
+from django import forms
+from django.contrib.auth.models import User
+from .models import Membership, Project
 
 class UserCreateForm(forms.ModelForm):
     password1 = forms.CharField(label='Heslo', widget=forms.PasswordInput)
@@ -177,3 +180,18 @@ class UserEditForm(forms.ModelForm):
             else:
                 user.groups.remove(manager_group)
         return user
+
+
+
+# Formset pre správu rolí používateľa v projektoch priamo v jeho editácii
+MembershipFormSet = forms.inlineformset_factory(
+    User, 
+    Membership,
+    fields=('project', 'role'),
+    extra=1, # Koľko prázdnych riadkov pre pridanie nového projektu sa zobrazí
+    can_delete=True,
+    widgets={
+        'project': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+        'role': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+    }
+)
