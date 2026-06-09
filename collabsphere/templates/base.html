@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CollabSphere{% endblock %}</title>
-    <!-- Anti-FOUC: apply saved theme before any paint -->
     <script>
         (function() {
             try {
@@ -68,11 +67,16 @@
             </div>
             <div class="overflow-hidden">
                 <div class="text-dark fw-bold text-truncate small">{{ request.user.get_full_name|default:request.user.username }}</div>
-                <div class="text-muted extra-small" style="font-size: 0.7rem;">Prihlásený</div>
+                <div class="text-muted extra-small" style="font-size: 0.7rem; font-weight: 500;">
+                    {% if request.user.username == 'admin' %}
+                        <i class="bi bi-shield-lock-fill text-danger me-1"></i>Admin
+                    {% else %}
+                        Manažér
+                    {% endif %}
+                </div>
             </div>
         </div>
 
-        <!-- Theme toggle button -->
         <button class="theme-toggle-btn" id="themeToggle" title="Prepnúť tému" aria-label="Prepnúť tmavý/svetlý režim">
             <i class="bi bi-moon-stars-fill ttb-icon" id="themeIcon"></i>
             <span class="ttb-label" id="themeLabel">Tmavý režim</span>
