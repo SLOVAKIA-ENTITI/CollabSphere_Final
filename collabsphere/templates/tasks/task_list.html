@@ -76,13 +76,15 @@
                     <th>Stav</th>
                     <th>Riešiteľ</th>
                     <th>Termín</th>
+                    {% if is_manager %}
                     <th class="text-end">Akcie</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
                 {% for t in tasks %}
                 <tr>
-                    <td>
+                    <td style="min-width: 250px;">
                         <a href="{% url 'task_detail' t.pk %}" class="text-decoration-none fw-bold text-dark">{{ t.name }}</a>
                     </td>
                     <td>
@@ -125,22 +127,22 @@
                             <i class="bi bi-calendar3 me-1"></i> {{ t.deadline|default:"—" }}
                         </div>
                     </td>
+                    {% if is_manager %}
                     <td class="text-end">
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{% url 'task_edit' t.pk %}" class="btn btn-sm btn-light text-secondary">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            {% if is_manager %}
                             <a href="{% url 'task_delete' t.pk %}" class="btn btn-sm btn-light text-danger">
                                 <i class="bi bi-trash"></i>
                             </a>
-                            {% endif %}
                         </div>
                     </td>
+                    {% endif %}
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">
+                    <td colspan="{% if is_manager %}7{% else %}6{% endif %}" class="text-center py-5 text-muted">
                         <i class="bi bi-clipboard-x fs-1 d-block mb-3"></i>
                         <h5>Nenašli sa žiadne úlohy</h5>
                         <p class="small">Skúste upraviť filtre alebo vytvorte novú úlohu.</p>
