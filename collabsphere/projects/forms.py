@@ -1,7 +1,9 @@
 from django import forms
 from django.contrib.auth.models import User, Group
 from .models import Project, Task, Team, Membership
-
+from django import forms
+from django.contrib.auth.models import User
+from .models import Project
 
 class UserCreateForm(forms.ModelForm):
     password1 = forms.CharField(label='Heslo', widget=forms.PasswordInput)
@@ -49,14 +51,19 @@ class UserCreateForm(forms.ModelForm):
                 user.groups.add(group)
         return user
 class ProjectForm(forms.ModelForm):
+    class ProjectForm(forms.ModelForm):
+    # Pridané pole pre výber externých ľudí mimo tímu (nepovinné)
+    external_members = forms.ModelMultipleChoiceField(
+        queryset=User.objects.all(),
+        required=False,
+        label="Externí riešitelia",
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}) # alebo Select2 widget ak používaš
+    )
+
     class Meta:
         model = Project
-        fields = ['name', 'description', 'deadline', 'status', 'team']
-        widgets = {
-            'deadline': forms.DateInput(attrs={'type': 'date'}),
-            'description': forms.Textarea(attrs={'rows': 3}),
-        }
-
+        # Pridaj sem tvoje pôvodné polia, napr. 'name', 'team', 'description', 'deadline', 'status'
+        fields = ['name', 'team', 'description', 'deadline', 'status']
     def clean_deadline(self):
         deadline = self.cleaned_data.get('deadline')
         if deadline:
