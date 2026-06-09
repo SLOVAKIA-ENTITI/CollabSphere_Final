@@ -119,21 +119,54 @@ def project_detail(request, pk):
     })
 
 
+
 @login_required
 @manager_required
 def project_create(request):
     if request.method == 'POST':
         form = ProjectForm(request.POST)
         if form.is_valid():
+            # 1. Uloženie samotného projektu
             project = form.save()
-            Membership.objects.create(user=request.user, project=project, role='manager')
-            messages.success(request, f'Projekt „{project.name}" bol vytvorený.')
+            
+            # Množina (set) ID používateľov, ktorých do projektu pridáme, aby sme predišli duplicitám
+            members_to_add = set()
+
+            # 2. AUTOMATICKÉ PRIDANIE ČLENOV Z TÍMU
+            # Ak bol k projektu priradený tím, vytiahneme z neho všetkých používateľov
+            if project.team:
+                team_users = project.team.members.all()
+                for user in team_users:
+                    members_to_add.add(user)
+
+            # 3. PRIDANIE EXTERNÝCH ČLENOV Z FORMULÁRA
+            # Vytiahneme používateľov, ktorých manažér zaklikol manuálne ako externých
+            external_users = form.cleaned_data.get('external_members')
+            if external_users:
+                for user in external_users:
+                    members_to_add.add(user)
+
+            # Bezpečne zabezpečíme, že tvorca projektu (request.user) tam bude tiež
+            members_to_add.add(request.user)
+
+            # 4. Hromadné uloženie členov do tabuľky Membership
+            for user in members_to_add:
+                # Nastavíme rolu: ak je to request.user, bude manager, inak bežný člen (developer)
+                role_type = 'manager' if user == request.user else 'developer'
+                
+                # Použijeme get_or_create pre prípad, že by sa nejaká podmienka prekrývala
+                Membership.objects.get_or_create(
+                    user=user,
+                    project=project,
+                    defaults={'role': role_type}
+                )
+
+            messages.success(request, f'Projekt „{project.name}“ bol úspešne vytvorený s členmi tímu a externými riešiteľmi.')
             return redirect('project_detail', pk=project.pk)
     else:
         form = ProjectForm()
+        
     return render(request, 'projects/project_form.html', {'form': form, 'title': 'Nový projekt'})
-
-
 @login_required
 @manager_required
 def project_edit(request, pk):
