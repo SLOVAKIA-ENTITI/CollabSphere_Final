@@ -89,9 +89,13 @@
                         
                         {% if is_manager %}
                         <div class="d-flex gap-1">
-                            <a href="{% url 'user_edit' m.user.pk %}?next={{ request.path }}" class="btn btn-sm btn-light text-primary rounded-circle" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" title="Upraviť rolu člena">
+                            {# IBA ty ako Admin (superuser) môžeš z detailu skočiť na globálnu úpravu používateľa #}
+                            {% if request.user.is_superuser %}
+                            <a href="{% url 'user_edit' m.user.pk %}?next={{ request.path }}" class="btn btn-sm btn-light text-primary rounded-circle" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" title="Upraviť globálnu rolu člena">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            {% endif %}
+                            
                             <form method="post" action="{% url 'membership_remove' project.pk m.user.pk %}" onsubmit="return confirm('Naozaj chcete odstrániť tohto člena z projektu?')">
                                 {% csrf_token %}
                                 <button class="btn btn-sm btn-light text-danger rounded-circle" style="width: 32px; height: 32px; padding: 0;">
