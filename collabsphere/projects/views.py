@@ -165,6 +165,12 @@ def project_create(request):
 @manager_required
 def project_edit(request, pk):
     project = get_object_or_404(Project, pk=pk)
+    
+    # Ak nie si Admin a zároveň nie si v tíme, ktorý vlastní tento projekt -> STOP
+    if not request.user.is_superuser and (not project.team or request.user not in project.team.members.all()):
+        messages.error(request, 'Môžete upravovať iba projekty vášho tímu.')
+        return redirect('project_detail', pk=pk)
+
     if request.method == 'POST':
         form = ProjectForm(request.POST, instance=project)
         if form.is_valid():
