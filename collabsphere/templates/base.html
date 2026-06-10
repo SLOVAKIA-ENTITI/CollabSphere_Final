@@ -68,10 +68,12 @@
             <div class="overflow-hidden">
                 <div class="text-dark fw-bold text-truncate small">{{ request.user.get_full_name|default:request.user.username }}</div>
                 <div class="text-muted extra-small" style="font-size: 0.7rem; font-weight: 500;">
-                    {% if request.user.username == 'admin' %}
+                    {% if request.user.is_superuser %}
                         <i class="bi bi-shield-lock-fill text-danger me-1"></i>Admin
+                    {% elif request.user|has_group:"manager" %}
+                        <i class="bi bi-briefcase-fill text-primary me-1"></i>Manažér
                     {% else %}
-                        Admin
+                        <i class="bi bi-person-fill text-secondary me-1"></i>Používateľ
                     {% endif %}
                 </div>
             </div>
