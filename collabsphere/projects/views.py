@@ -1,7 +1,7 @@
 import json
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Q, Value
@@ -302,6 +302,8 @@ def task_edit(request, pk):
         form.fields['assignee'].label_from_instance = lambda obj: f"{obj.get_full_name() or obj.username}"
         
     return render(request, 'tasks/task_form.html', {'form': form, 'title': 'Upraviť úlohu', 'task': task, 'is_manager': is_manager})
+
+
 @login_required
 @manager_required
 def task_delete(request, pk):
@@ -464,7 +466,7 @@ def api_tasks(request):
             'priority': t.priority,
             'status': t.status,
             'deadline': str(t.deadline) if t.deadline else None,
-            'project': {'id': t.project.pk, 'name': t.project.name},
+            'project': {'id': t.project.pk, 'name': p.project.name},
             'assignee': {'id': t.assignee.pk, 'username': t.assignee.username} if t.assignee else None,
         })
     return JsonResponse({'count': len(data), 'results': data})
@@ -493,11 +495,22 @@ def user_list(request):
     query = request.GET.get('search', '').strip()
     order_by = request.GET.get('order_by', 'last_name')
     
-    users = User.objects.all().prefetch_related('groups', 'teams')
+    # Pre-fetchovanie skupín, tímov a projektov pre efektivitu
+    users = User.objects.all().prefetch_related('groups', 'teams', 'projects')
     
+    # Výpočet vyťaženosti (workloadu) pre každého používateľa
+    PRIORITY_WEIGHT = {'low': 1, 'medium': 2, 'high': 3, 'critical': 5}
+    user_workloads = {}
+    
+    # Predpočítame skóre z otvorených úloh
     for u in users:
         u.is_manager = u.groups.filter(name='manager').exists()
-    
+        
+        user_tasks = Task.objects.filter(assignee=u).exclude(status='done')
+        score = sum(PRIORITY_WEIGHT.get(t.priority, 1) for t in user_tasks)
+        user_workloads[u.pk] = score
+        u.workload_score = score
+
     if query:
         users = users.annotate(
             full_name_space=Concat('first_name', Value(' '), 'last_name'),
@@ -512,6 +525,13 @@ def user_list(request):
         
     users_list = list(users)
     
+    # Priradenie farieb a percent podľa maximálneho skóre v systéme
+    max_score = max(user_workloads.values(), default=1) or 1
+    for u in users_list:
+        u.workload_percent = round((user_workloads.get(u.pk, 0) / max_score) * 100)
+        u.workload_color = 'success' if u.workload_percent < 30 else ('warning' if u.workload_percent < 65 else 'danger')
+    
+    # Radenie zoznamu
     if order_by == 'first_name':
         users_list.sort(key=lambda x: (x.first_name.lower(), x.last_name.lower(), x.username.lower()))
     elif order_by == '-first_name':
@@ -524,6 +544,10 @@ def user_list(request):
         users_list.sort(key=lambda x: (not x.is_manager, x.last_name.lower()))
     elif order_by == '-role':
         users_list.sort(key=lambda x: (x.is_manager, x.last_name.lower()))
+    elif order_by == 'workload':
+        users_list.sort(key=lambda x: (x.workload_score, x.last_name.lower()))
+    elif order_by == '-workload':
+        users_list.sort(key=lambda x: (x.workload_score, x.last_name.lower()), reverse=True)
     else:
         users_list.sort(key=lambda x: (x.last_name.lower(), x.first_name.lower()))
 
@@ -544,8 +568,16 @@ def user_edit(request, pk):
         formset = MembershipFormSet(request.POST, instance=edit_user)
         
         if form.is_valid() and formset.is_valid():
-            form.save()
+            user = form.save()
             formset.save()
+            
+            # Nastavenie/Odstránenie zo skupiny manager podľa zaškrtávacieho poľa vo formulári
+            manager_group, created = Group.objects.get_or_create(name='manager')
+            if form.cleaned_data.get('is_manager'):
+                user.groups.add(manager_group)
+            else:
+                user.groups.remove(manager_group)
+                
             messages.success(request, f'Používateľ {edit_user.get_full_name() or edit_user.username} bol úspešne upravený.')
             
             next_url = request.GET.get('next')
@@ -554,7 +586,9 @@ def user_edit(request, pk):
                 
             return redirect('user_list')
     else:
-        form = UserEditForm(instance=edit_user)
+        # Predvyplnenie políčka is_manager na základe reálneho stavu v databáze
+        is_manager_status = edit_user.groups.filter(name='manager').exists()
+        form = UserEditForm(instance=edit_user, initial={'is_manager': is_manager_status})
         formset = MembershipFormSet(instance=edit_user)
         
     return render(request, 'registration/user_edit.html', {
