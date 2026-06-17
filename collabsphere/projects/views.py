@@ -502,7 +502,7 @@ def user_list(request):
     PRIORITY_WEIGHT = {'low': 1, 'medium': 2, 'high': 3, 'critical': 5}
     user_workloads = {}
     
-    # Predpočítame skóre z otvorených úloh
+    # Predpočítame skóre z otvorených úloh a určíme roly
     for u in users:
         u.is_manager = u.groups.filter(name='manager').exists()
         
@@ -531,7 +531,7 @@ def user_list(request):
         u.workload_percent = round((user_workloads.get(u.pk, 0) / max_score) * 100)
         u.workload_color = 'success' if u.workload_percent < 30 else ('warning' if u.workload_percent < 65 else 'danger')
     
-    # Radenie zoznamu
+    # Radenie zoznamu (Pridaná podpora pre trojúrovňovú rolu vrátane Superusera)
     if order_by == 'first_name':
         users_list.sort(key=lambda x: (x.first_name.lower(), x.last_name.lower(), x.username.lower()))
     elif order_by == '-first_name':
@@ -541,9 +541,11 @@ def user_list(request):
     elif order_by == '-last_name':
         users_list.sort(key=lambda x: (x.last_name.lower(), x.first_name.lower(), x.username.lower()), reverse=True)
     elif order_by == 'role':
-        users_list.sort(key=lambda x: (not x.is_manager, x.last_name.lower()))
+        # Zoradenie: Admini -> Manažéri -> Členovia
+        users_list.sort(key=lambda x: (not x.is_superuser, not x.is_manager, x.last_name.lower()))
     elif order_by == '-role':
-        users_list.sort(key=lambda x: (x.is_manager, x.last_name.lower()))
+        # Obrátené zoradenie rolí
+        users_list.sort(key=lambda x: (x.is_superuser, x.is_manager, x.last_name.lower()))
     elif order_by == 'workload':
         users_list.sort(key=lambda x: (x.workload_score, x.last_name.lower()))
     elif order_by == '-workload':
@@ -568,14 +570,42 @@ def user_edit(request, pk):
         formset = MembershipFormSet(request.POST, instance=edit_user)
         
         if form.is_valid() and formset.is_valid():
+            requested_role = form.cleaned_data.get('role')
+            
+            # Detekcia zmeny administrátorských (Superuser) práv oproti databáze
+            became_admin = (requested_role == 'admin' and not edit_user.is_superuser)
+            lost_admin = (requested_role != 'admin' and edit_user.is_superuser)
+            
+            if became_admin or lost_admin:
+                # 1. Bezpečnostná poistka: Iba ty ako skutočný Superuser môžeš siahnuť na Admin rolu
+                if not request.user.is_superuser:
+                    messages.error(request, 'Iba administrátor môže prideľovať alebo odoberať rolu Administrátora.')
+                    return render(request, 'registration/user_edit.html', {'form': form, 'formset': formset, 'profile_user': edit_user})
+                
+                # 2. Overenie tvojho vlastného hesla pred zápisom zmeny
+                password_confirm = form.cleaned_data.get('admin_password_confirm', '')
+                if not request.user.check_password(password_confirm):
+                    form.add_error('admin_password_confirm', 'Nesprávne administrátorské heslo. Akcia bola zamietnutá.')
+                    return render(request, 'registration/user_edit.html', {'form': form, 'formset': formset, 'profile_user': edit_user})
+                
+                # Ak overenie prešlo, modifikujeme atribúty objektu pred uložením
+                if became_admin:
+                    edit_user.is_superuser = True
+                    edit_user.is_staff = True
+                elif lost_admin:
+                    edit_user.is_superuser = False
+                    edit_user.is_staff = False
+
+            # Ukladanie zmien formulárov
             user = form.save()
             formset.save()
             
-            # Nastavenie/Odstránenie zo skupiny manager podľa zaškrtávacieho poľa vo formulári
-            manager_group, created = Group.objects.get_or_create(name='manager')
-            if form.cleaned_data.get('is_manager'):
+            # Manažment Django skupín podľa vybranej roly z ChoiceFieldu
+            manager_group, _ = Group.objects.get_or_create(name='manager')
+            if requested_role == 'manager':
                 user.groups.add(manager_group)
             else:
+                # Ak bol zvolený admin alebo bežný člen, odstraňujeme ho z manažérskej skupiny
                 user.groups.remove(manager_group)
                 
             messages.success(request, f'Používateľ {edit_user.get_full_name() or edit_user.username} bol úspešne upravený.')
@@ -586,9 +616,7 @@ def user_edit(request, pk):
                 
             return redirect('user_list')
     else:
-        # Predvyplnenie políčka is_manager na základe reálneho stavu v databáze
-        is_manager_status = edit_user.groups.filter(name='manager').exists()
-        form = UserEditForm(instance=edit_user, initial={'is_manager': is_manager_status})
+        form = UserEditForm(instance=edit_user)
         formset = MembershipFormSet(instance=edit_user)
         
     return render(request, 'registration/user_edit.html', {
@@ -614,6 +642,108 @@ def user_delete(request, pk):
     return render(request, 'projects/confirm_delete.html', {'object': profile_user, 'type': 'používateľa'})
 
 
+# ─── Calendar ─────────────────────────────────────────────────────────────────
+
+@login_required
+def calendar_view(request):
+    import json
+    from datetime import date
+    is_manager = request.user.groups.filter(name='manager').exists()
+
+    if is_manager:
+        projects = Project.objects.exclude(deadline__isnull=True)
+        tasks = Task.objects.exclude(deadline__isnull=True)
+    else:
+        projects = Project.objects.filter(members=request.user).exclude(deadline__isnull=True)
+        tasks = Task.objects.filter(
+            Q(assignee=request.user) | Q(project__members=request.user)
+        ).distinct().exclude(deadline__isnull=True)
+
+    from .holidays import get_slovak_holidays
+    
+    events = []
+    current_year = date.today().year
+    for y in [current_year - 1, current_year, current_year + 1]:
+        sk_holidays = get_slovak_holidays(y)
+        for h_date, h_name in sk_holidays.items():
+            events.append({
+                'title': h_name,
+                'date': str(h_date),
+                'type': 'holiday',
+                'url': '#',
+            })
+
+    for p in projects:
+        events.append({
+            'title': p.name,
+            'date': str(p.deadline),
+            'type': 'project',
+            'status': p.status,
+            'url': f'/projects/{p.pk}/',
+        })
+    for t in tasks:
+        events.append({
+            'title': t.name,
+            'date': str(t.deadline),
+            'type': 'task',
+            'priority': t.priority,
+            'status': t.status,
+            'url': f'/tasks/{t.pk}/',
+        })
+
+    return render(request, 'projects/calendar.html', {
+        'events_json': json.dumps(events),
+        'is_manager': is_manager,
+        'days': ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'],  
+    })
+
+
+# ─── User Detail ──────────────────────────────────────────────────────────────
+
+@login_required
+@manager_required
+def user_detail(request, pk):
+    import json
+    from datetime import timedelta
+    from django.utils import timezone
+
+    profile_user = get_object_or_404(User, pk=pk)
+    all_tasks = Task.objects.filter(assignee=profile_user).select_related('project').order_by('deadline')
+
+    PRIORITY_WEIGHT = {'low': 1, 'medium': 2, 'high': 3, 'critical': 5}
+
+    by_status = {s: 0 for s, _ in Task.STATUS_CHOICES}
+    by_priority = {'low': 0, 'medium': 0, 'high': 0, 'critical': 0}
+    score = 0
+    for t in all_tasks:
+        by_status[t.status] = by_status.get(t.status, 0) + 1
+        by_priority[t.priority] = by_priority.get(t.priority, 0) + 1
+        if t.status != 'done':
+            score += PRIORITY_WEIGHT.get(t.priority, 1)
+
+    now = timezone.now().date()
+    weeks = []
+    for i in range(7, -1, -1):
+        week_start = now - timedelta(days=now.weekday()) - timedelta(weeks=i)
+        week_end = week_start + timedelta(days=6)
+        count = all_tasks.filter(status='done', deadline__gte=week_start, deadline__lte=week_end).count()
+        weeks.append({'label': week_start.strftime('%d.%m'), 'count': count})
+
+    projects = Project.objects.filter(members=profile_user).distinct()
+
+    context = {
+        'profile_user': profile_user,
+        'all_tasks': all_tasks,
+        'by_status': by_status,
+        'by_priority': by_priority,
+        'score': score,
+        'projects': projects,
+        'weeks_json': json.dumps(weeks),
+        'total': all_tasks.count(),
+        'done': by_status.get('done', 0),
+        'open': all_tasks.exclude(status='done').count(),
+    }
+    return render(request, 'projects/user_detail.html', context)
 # ─── Calendar ─────────────────────────────────────────────────────────────────
 
 @login_required
