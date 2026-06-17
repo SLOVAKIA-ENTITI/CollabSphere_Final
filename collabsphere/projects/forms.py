@@ -1,27 +1,19 @@
 from django import forms
 from django.contrib.auth.models import User, Group
 from .models import Project, Task, Team, Membership
-from django import forms
-from django.contrib.auth.models import User
-from .models import Project
-from django import forms
-from django.contrib.auth.models import User
-from .models import Membership, Project
 
 class UserCreateForm(forms.ModelForm):
     password1 = forms.CharField(label='Heslo', widget=forms.PasswordInput)
     password2 = forms.CharField(label='Potvrdenie hesla', widget=forms.PasswordInput)
     
-    # Zmenili sme prázdny reťazec '' na 'member'
     role = forms.ChoiceField(
         label='Rola',
         choices=[('member', 'Člen tímu'), ('manager', 'Manažér')],
-        required=True # Pokojne môže byť True, keďže 'member' je platná hodnota
+        required=True
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Tento cyklus teraz bezpečne hodí 'required' na úplne všetky polia
         for field_name, field in self.fields.items():
             field.required = True
 
@@ -48,11 +40,11 @@ class UserCreateForm(forms.ModelForm):
         if commit:
             user.save()
             role = self.cleaned_data.get('role')
-            # Ak je manažér, pridá ho do skupiny manažérov, inak zostane bežným členom
             if role == 'manager':
                 group, _ = Group.objects.get_or_create(name='manager')
                 user.groups.add(group)
         return user
+
 
 class ProjectForm(forms.ModelForm):
     external_members = forms.ModelMultipleChoiceField(
@@ -66,25 +58,22 @@ class ProjectForm(forms.ModelForm):
         model = Project
         fields = ['name', 'team', 'description', 'deadline', 'status'] 
         
-        # Pridáme definíciu widgetu pre deadline, aby rešpektoval formát a zobrazil HTML5 kalendár
         widgets = {
             'deadline': forms.DateInput(
-                format='%Y-%m-%d', # Django vnútorne pre input type="date" potrebuje tento formát
+                format='%Y-%m-%d',
                 attrs={
                     'type': 'date',
                     'class': 'form-control'
                 }
             ),
         }
+
     def clean_deadline(self):
         deadline = self.cleaned_data.get('deadline')
         if deadline:
             from .holidays import get_slovak_holidays
             holidays = get_slovak_holidays(deadline.year)
             if deadline in holidays:
-                # We don't block it, but we can add a warning or just keep it as info
-                # For now, let's just allow it but maybe the user wants a strict check?
-                # Let's just keep it as is, or add a note.
                 pass
         return deadline
 
@@ -145,11 +134,28 @@ class MembershipForm(forms.ModelForm):
         model = Membership
         fields = ['user', 'role']
 
+
 class UserEditForm(forms.ModelForm):
+    # Pridali sme možnosť 'admin' priamo do výberu rolí
     role = forms.ChoiceField(
         label='Rola',
-        choices=[('member', 'Člen tímu'), ('manager', 'Manažér')],
+        choices=[
+            ('member', 'Člen tímu'), 
+            ('manager', 'Manažér'), 
+            ('admin', 'Administrátor (Superuser)')
+        ],
         required=True
+    )
+
+    # Nové pole na overenie tvojho hesla admina
+    admin_password_confirm = forms.CharField(
+        label='Vaše administrátorské heslo',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 
+            'placeholder': 'Vyžadované len pri zmene Admin statusu'
+        }),
+        required=False,
+        help_text="Zadajte SVOJE heslo pre potvrdenie udelenia alebo odobratia práv Administrátora."
     )
 
     class Meta:
@@ -165,27 +171,25 @@ class UserEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
-            is_manager = self.instance.groups.filter(name='manager').exists()
-            self.fields['role'].initial = 'manager' if is_manager else 'member'
+            # Určenie počiatočnej hodnoty roly podľa stavu v DB
+            if self.instance.is_superuser:
+                self.fields['role'].initial = 'admin'
+            elif self.instance.groups.filter(name='manager').exists():
+                self.fields['role'].initial = 'manager'
+            else:
+                self.fields['role'].initial = 'member'
 
     def save(self, commit=True):
-        user = super().save(commit=commit)
-        if commit:
-            from django.contrib.auth.models import Group
-            role = self.cleaned_data.get('role')
-            manager_group, _ = Group.objects.get_or_create(name='manager')
-            if role == 'manager':
-                user.groups.add(manager_group)
-            else:
-                user.groups.remove(manager_group)
-        return user
+        # Priame spracovanie ukladania (skupiny a superuser príznaky) riešime vo view
+        return super().save(commit=commit)
+
 
 # Formset pre správu rolí používateľa v projektoch priamo v jeho editácii
 MembershipFormSet = forms.inlineformset_factory(
     User, 
     Membership,
     fields=('project', 'role'),
-    extra=1, # Koľko prázdnych riadkov pre pridanie nového projektu sa zobrazí
+    extra=1,
     can_delete=True,
     widgets={
         'project': forms.Select(attrs={'class': 'form-select form-select-sm'}),
