@@ -5,7 +5,8 @@
 
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-lg-8"> <div class="card">
+  <div class="col-lg-8"> 
+    <div class="card">
       <div class="card-header bg-white py-3 fw-semibold">
         <i class="bi bi-person-gear me-2 text-primary"></i>{{ profile_user.get_full_name|default:profile_user.username }}
       </div>
@@ -14,27 +15,43 @@
           {% csrf_token %}
           
           {% for field in form %}
-          <div class="mb-3">
-            <label class="form-label fw-semibold">{{ field.label }}</label>
-            {% if field.field.widget.input_type == 'select' or field.name == 'role' %}
-              <select name="{{ field.html_name }}" class="form-select">
-                {% for val, label in field.field.choices %}
-                <option value="{{ val }}" {% if field.value == val %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
+            {% if field.name == 'admin_password_confirm' %}
+              <div class="mb-3" id="admin-password-block" style="display: none;">
+                <label class="form-label text-danger fw-bold">
+                  <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ field.label }}
+                </label>
+                <input type="password"
+                       name="{{ field.html_name }}"
+                       class="form-control border-danger"
+                       placeholder="Vyžadované len pri zmene Admin statusu">
+                {% if field.help_text %}
+                  <div class="form-text text-muted small mt-1">{{ field.help_text }}</div>
+                {% endif %}
+                {% if field.errors %}
+                  <div class="text-danger small mt-1">{{ field.errors|join:", " }}</div>
+                {% endif %}
+              </div>
             {% else %}
-              <input type="{{ field.field.widget.input_type }}"
-                     name="{{ field.html_name }}"
-                     value="{{ field.value|default:'' }}"
-                     class="form-control"
-                     {% if field.field.required %}required{% endif %}>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">{{ field.label }}</label>
+                {% if field.field.widget.input_type == 'select' or field.name == 'role' %}
+                  <select name="{{ field.html_name }}" class="form-select">
+                    {% for val, label in field.field.choices %}
+                      <option value="{{ val }}" {% if field.value == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                {% else %}
+                  <input type="{{ field.field.widget.input_type }}"
+                         name="{{ field.html_name }}"
+                         value="{{ field.value|default:'' }}"
+                         class="form-control"
+                         {% if field.field.required %}required{% endif %}>
+                {% endif %}
+                {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+              </div>
             {% endif %}
-            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
-          </div>
           {% endfor %}
 
-          <h5 class="mt-4 mb-3 fw-bold text-secondary">
-            <!-- NOVÁ SEKCIA: PROJEKTY A ROLY (UPRAVENÁ PRE TMAVÝ REŽIM) -->
           <h5 class="mt-4 mb-3 fw-bold text-secondary">
             <i class="bi bi-folder-symlink me-2"></i>Priradenie do projektov a pracovné roly
           </h5>
@@ -101,4 +118,39 @@
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.querySelector('select[name="role"]');
+    const passwordBlock = document.getElementById('admin-password-block');
+    const passwordInput = passwordBlock ? passwordBlock.querySelector('input') : null;
+    
+    if (roleSelect && passwordBlock && passwordInput) {
+      // Zapamätáme si pôvodnú rolu z databázy pri načítaní stránky
+      const initialRole = roleSelect.value;
+
+      function togglePasswordInput() {
+        const currentRole = roleSelect.value;
+        
+        // Zobrazíme pole ak:
+        // 1. Nastavuje sa nová rola 'admin' (používateľ ním nebol)
+        // 2. Ruší sa rola 'admin' (používateľ ním doteraz bol a meníme ho na niečo iné)
+        if (currentRole === 'admin' || initialRole === 'admin') {
+          passwordBlock.style.display = 'block';
+          passwordInput.setAttribute('required', 'required');
+        } else {
+          passwordBlock.style.display = 'none';
+          passwordInput.removeAttribute('required');
+          passwordInput.value = ''; // Prečistíme pole ak sa skryje
+        }
+      }
+
+      // Sledujeme zmeny vo výbere roly
+      roleSelect.addEventListener('change', togglePasswordInput);
+      
+      // Spustíme okamžite pri načítaní na overenie východiskového stavu
+      togglePasswordInput();
+    }
+  });
+</script>
 {% endblock %}
