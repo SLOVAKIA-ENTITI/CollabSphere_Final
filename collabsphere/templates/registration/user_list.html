@@ -80,12 +80,12 @@
             <td><code class="text-muted small">{{ u.username }}</code></td>
             <td class="text-muted small">{{ u.email|default:"—" }}</td>
             <td>
-              {% if u.username == 'admin' %}
+              {% if u.is_superuser %}
                 <span class="badge bg-danger text-white"><i class="bi bi-shield-lock-fill me-1"></i>Admin</span>
               {% elif u.is_manager %}
-                <span class="badge bg-warning text-dark"><i class="bi bi-shield-fill me-1"></i>Manažér</span>
+                <span class="badge bg-primary text-white"><i class="bi bi-briefcase-fill me-1"></i>Manažér</span>
               {% else %}
-                <span class="badge bg-secondary">Člen</span>
+                <span class="badge bg-secondary text-white"><i class="bi bi-person-fill me-1"></i>Člen tímu</span>
               {% endif %}
             </td>
             <td>
